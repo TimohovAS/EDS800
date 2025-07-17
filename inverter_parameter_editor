@@ -1,0 +1,490 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+from pymodbus.client import ModbusSerialClient
+from pymodbus.exceptions import ModbusException
+import tksheet
+import serial.tools.list_ports
+import logging
+import json
+from parameters import PARAMETERS
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class InverterParameterEditor:
+    VERSION = "1.8.5"  # Updated version to restore Write All Parameters button as last
+    
+    def __init__(self, root):
+        self.root = root
+        self.root.title(f"EDS800 Parameter Editor (Version {self.VERSION})")
+        self.root.geometry("900x600")
+        
+        # Configure window resizing
+        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        
+        # Variables
+        self.selected_port = tk.StringVar()
+        self.selected_group = tk.StringVar(value="F0")
+        self.loaded_settings = {}
+        
+        # Interface for port and group selection
+        self.control_frame = tk.Frame(self.root)
+        self.control_frame.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        
+        self.port_label = tk.Label(self.control_frame, text="Select COM Port:")
+        self.port_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        
+        self.port_combobox = ttk.Combobox(self.control_frame, textvariable=self.selected_port, state="readonly")
+        self.port_combobox.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        
+        self.refresh_button = tk.Button(self.control_frame, text="Refresh Ports", command=self.refresh_ports)
+        self.refresh_button.grid(row=0, column=2, padx=5, pady=5)
+        
+        self.group_label = tk.Label(self.control_frame, text="Select Group:")
+        self.group_label.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        
+        self.group_combobox = ttk.Combobox(
+            self.control_frame,
+            textvariable=self.selected_group,
+            state="readonly",
+            values=["F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "Fd"]
+        )
+        self.group_combobox.grid(row=0, column=4, padx=5, pady=5, sticky="w")
+        self.group_combobox.bind("<<ComboboxSelected>>", self.update_table)
+        
+        self.read_button = tk.Button(self.control_frame, text="Read Group", command=self.read_parameters)
+        self.read_button.grid(row=0, column=5, padx=5, pady=5)
+        
+        self.save_button = tk.Button(self.control_frame, text="Save Group", command=self.save_changes)
+        self.save_button.grid(row=0, column=6, padx=5, pady=5)
+        
+        self.refresh_ports()
+        
+        self.sheet = tksheet.Sheet(
+            self.root,
+            headers=["Code", "Description", "Value", "Unit", "Default"],
+            show_x_scrollbar=True,
+            show_y_scrollbar=True,
+            expand_to_fill=True
+        )
+        self.sheet.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        self.sheet.enable_bindings(("single_select", "row_select", "edit_cell", "column_width_resize"))
+        
+        self.sheet.set_column_widths([80, 300, 100, 80, 100])
+        self.sheet.align_columns(columns=[0, 2, 3, 4], align="center")
+        self.sheet.align_columns(columns=[1], align="w")
+        self.sheet.readonly_columns(columns=[0, 1, 3, 4])
+        
+        self.button_frame = tk.Frame(self.root)
+        self.button_frame.grid(row=2, column=0, padx=5, pady=5, sticky="ew")
+        
+        self.read_all_button = tk.Button(self.button_frame, text="Read All Parameters", command=self.read_all_parameters)
+        self.read_all_button.grid(row=0, column=0, padx=5, pady=5)
+        
+        self.save_to_file_button = tk.Button(self.button_frame, text="Save All Settings to File", command=self.save_to_file)
+        self.save_to_file_button.grid(row=0, column=1, padx=5, pady=5)
+        
+        self.load_from_file_button = tk.Button(self.button_frame, text="Load from File", command=self.load_from_file)
+        self.load_from_file_button.grid(row=0, column=2, padx=5, pady=5)
+        
+        self.write_all_button = tk.Button(self.button_frame, text="Write All Parameters", command=self.write_all_parameters)
+        self.write_all_button.grid(row=0, column=3, padx=5, pady=5)
+        
+        self.update_table(None)
+        
+        self.client = None
+        
+    def refresh_ports(self):
+        """Refresh the list of available COM ports"""
+        ports = [port.device for port in serial.tools.list_ports.comports()]
+        if ports:
+            self.port_combobox["values"] = ports
+            self.selected_port.set(ports[0])
+        else:
+            self.port_combobox["values"] = []
+            self.selected_port.set("")
+            messagebox.showwarning("Warning", "No COM ports found")
+            logger.warning("No COM ports found")
+    
+    def parse_range(self, range_str):
+        """Parse the range of values from a string"""
+        try:
+            min_val, max_val = map(float, range_str.split("~"))
+            return min_val, max_val
+        except ValueError:
+            return None, None
+    
+    def validate_value(self, param, value):
+        """Validate the value against the parameter's range"""
+        try:
+            if param["code"] in ["F0.03", "F2.11", "F2.12", "F6.01", "F9.11", "F2.13", "F4.00", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"]:
+                expected_len = 2 if param["code"] == "F9.11" else 3 if param["code"] in ["F0.03", "F2.13", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"] else 4
+                valid_chars = "01234" if param["code"] == "F2.13" else "0123" if param["code"] == "F4.00" else "0123456" if param["code"] in ["F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"] else "01"
+                if len(value) != expected_len or not all(c in valid_chars for c in value):
+                    messagebox.showerror(
+                        "Invalid Value",
+                        f"Value for {param['code']} must be {expected_len} digits ({valid_chars}), e.g., {'1111' if param['code'] in ['F2.11', 'F2.12', 'F6.01'] else '11' if param['code'] == 'F9.11' else '432' if param['code'] == 'F2.13' else '3212' if param['code'] == 'F4.00' else '621' if param['code'] in ['F4.01', 'F4.03', 'F4.05', 'F4.07', 'F4.09', 'F4.11', 'F4.13'] else '111'}"
+                    )
+                    return False
+                return True
+            value = float(value)
+            min_val, max_val = self.parse_range(param["range"])
+            if min_val is not None and max_val is not None:
+                if min_val <= value <= max_val:
+                    return True
+                else:
+                    messagebox.showerror(
+                        "Invalid Value",
+                        f"Value for {param['code']} must be between {min_val} and {max_val} {param['unit']}"
+                    )
+                    return False
+            return True
+        except ValueError:
+            messagebox.showerror("Invalid Value", f"Value for {param['code']} must be a number")
+            return False
+    
+    def update_table(self, event):
+        """Update the table based on the selected group"""
+        selected_group = self.selected_group.get()
+        self.data = [
+            [param["code"], param["description"], self._format_value(self.loaded_settings.get(param["code"], ""), param["scale"], param["code"]), param["unit"], param["default"]]
+            for param in PARAMETERS if param["group"] == selected_group and param["group"] not in ["FF", "C"]
+        ]
+        self.sheet.set_sheet_data(self.data)
+    
+    def _format_value(self, value, scale, code=None):
+        """Format the value with scaling and BCD handling"""
+        try:
+            if code in ["F0.03", "F2.11", "F2.12", "F6.01", "F9.11", "F2.13", "F4.00", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"]:
+                value = int(value) & 0xFFFF
+                if code == "F9.11":
+                    tens = (value >> 4) & 0x0F
+                    units = value & 0x0F
+                    digits = [tens, units]
+                elif code in ["F0.03", "F2.13", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"]:
+                    hundreds = (value >> 8) & 0x0F
+                    tens = (value >> 4) & 0x0F
+                    units = value & 0x0F
+                    digits = [hundreds, tens, units]
+                else:
+                    thousands = (value >> 12) & 0x0F
+                    hundreds = (value >> 8) & 0x0F
+                    tens = (value >> 4) & 0x0F
+                    units = value & 0x0F
+                    digits = [thousands, hundreds, tens, units]
+                max_digit = 4 if code == "F2.13" else 3 if code == "F4.00" else 6 if code in ["F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"] else 1
+                if all(d <= max_digit for d in digits):
+                    return "".join(map(str, digits))
+                else:
+                    return "BCD Error"
+            return f"{float(value) / scale:.2f}" if scale != 1 else str(value)
+        except (ValueError, TypeError):
+            return str(value)
+    
+    def _scale_value(self, value, scale):
+        """Scale the value before writing"""
+        try:
+            return int(float(value) * scale)
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid value: {value}")
+    
+    def connect(self):
+        """Connect to the inverter"""
+        port = self.selected_port.get()
+        if not port:
+            messagebox.showerror("Error", "COM port not selected")
+            logger.error("No COM port selected")
+            return False
+        
+        self.client = ModbusSerialClient(
+            port=port,
+            baudrate=9600,
+            parity='N',
+            stopbits=1,
+            bytesize=8,
+            timeout=1
+        )
+        
+        if not self.client.connect():
+            messagebox.showerror("Error", f"Failed to connect to inverter on {port}")
+            logger.error(f"Failed to connect to inverter on {port}")
+            return False
+        return True
+    
+    def read_parameters(self):
+        """Read parameters of the current group from the inverter"""
+        if not self.connect():
+            return
+        
+        selected_group = self.selected_group.get()
+        group_parameters = [param for param in PARAMETERS if param["group"] == selected_group and param["group"] not in ["FF", "C"]]
+        
+        if not group_parameters:
+            messagebox.showwarning("Warning", f"No parameters for group {selected_group}")
+            logger.warning(f"No parameters for group {selected_group}")
+            return
+        
+        try:
+            for i, param in enumerate(group_parameters):
+                result = self.client.read_holding_registers(
+                    address=param["address"],
+                    count=1,
+                    slave=1
+                )
+                if not result.isError():
+                    value = result.registers[0]
+                    formatted_value = self._format_value(value, param["scale"], param["code"])
+                    self.data[i][2] = formatted_value
+                    self.loaded_settings[param["code"]] = value
+                    logger.info(f"Read {param['code']}: raw={value}, formatted={formatted_value}")
+                else:
+                    self.data[i][2] = "Error"
+                    logger.error(f"Failed to read {param['code']}")
+            
+            self.sheet.set_sheet_data(self.data)
+            logger.info("Parameters successfully read")
+            
+        except ModbusException as e:
+            messagebox.showerror("Error", f"Modbus error: {e}")
+            logger.error(f"Modbus error: {e}")
+        finally:
+            if self.client:
+                self.client.close()
+    
+    def read_all_parameters(self):
+        """Read all parameters from the inverter, excluding FF and C groups"""
+        if not self.connect():
+            return
+        
+        try:
+            self.loaded_settings.clear()
+            for param in PARAMETERS:
+                if param["group"] in ["FF", "C"]:
+                    continue  # Skip FF and C parameters
+                result = self.client.read_holding_registers(
+                    address=param["address"],
+                    count=1,
+                    slave=1
+                )
+                if not result.isError():
+                    value = result.registers[0]
+                    self.loaded_settings[param["code"]] = value
+                    logger.info(f"Read {param['code']}: {value}")
+                else:
+                    self.loaded_settings[param["code"]] = "Error"
+                    logger.error(f"Failed to read {param['code']}")
+            
+            self.update_table(None)
+            logger.info("All parameters successfully read")
+            
+        except ModbusException as e:
+            messagebox.showerror("Error", f"Modbus error: {e}")
+            logger.error(f"Modbus error: {e}")
+        finally:
+            if self.client:
+                self.client.close()
+    
+    def save_to_file(self):
+        """Save all settings to a file, excluding FF and C groups"""
+        if not self.connect():
+            return
+        
+        try:
+            settings = {}
+            for param in PARAMETERS:
+                if param["group"] in ["FF", "C"]:
+                    continue  # Skip FF and C parameters
+                result = self.client.read_holding_registers(
+                    address=param["address"],
+                    count=1,
+                    slave=1
+                )
+                if not result.isError():
+                    value = result.registers[0]
+                    settings[param["code"]] = value
+                    logger.info(f"Read for saving {param['code']}: {value}")
+                else:
+                    settings[param["code"]] = "Error"
+                    logger.error(f"Failed to read for saving {param['code']}")
+            
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                title="Save settings to file"
+            )
+            if not file_path:
+                logger.info("Saving canceled by user")
+                return
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, ensure_ascii=False, indent=4)
+            logger.info(f"Settings saved to file: {file_path}")
+            messagebox.showinfo("Success", f"Settings saved to file:\n{file_path}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error during saving: {e}")
+            logger.error(f"Error saving to file: {e}")
+        finally:
+            if self.client:
+                self.client.close()
+    
+    def load_from_file(self):
+        """Load settings from a file"""
+        file_path = filedialog.askopenfilename(
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            title="Load settings from file"
+        )
+        if not file_path:
+            logger.info("Loading canceled by user")
+            return
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                self.loaded_settings = json.load(f)
+            logger.info(f"Settings loaded from file: {file_path}")
+            
+            self.update_table(None)
+            messagebox.showinfo("Success", "Settings loaded into table. Edit if needed and click 'Save Group' or 'Write All Parameters'.")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error during loading: {e}")
+            logger.error(f"Error loading from file: {e}")
+    
+    def save_changes(self):
+        """Save changes of the current group to the inverter"""
+        if not self.connect():
+            return
+        
+        if not messagebox.askyesno("Confirmation", "Are you sure you want to write parameters to the inverter?"):
+            logger.info("Writing current group canceled by user")
+            return
+        
+        selected_group = self.selected_group.get()
+        group_parameters = [param for param in PARAMETERS if param["group"] == selected_group and param["group"] not in ["FF", "C"]]
+        
+        if not group_parameters:
+            messagebox.showwarning("Warning", f"No parameters for group {selected_group}")
+            logger.warning(f"No parameters for group {selected_group}")
+            return
+        
+        try:
+            updated_data = self.sheet.get_sheet_data()
+            for i, param in enumerate(group_parameters):
+                try:
+                    new_value_str = updated_data[i][2]
+                    if not self.validate_value(param, new_value_str):
+                        continue
+                    
+                    if param["code"] in ["F0.03", "F2.11", "F2.12", "F6.01", "F9.11", "F2.13", "F4.00", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"]:
+                        expected_len = 2 if param["code"] == "F9.11" else 3 if param["code"] in ["F0.03", "F2.13", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"] else 4
+                        valid_chars = "01234" if param["code"] == "F2.13" else "0123" if param["code"] == "F4.00" else "0123456" if param["code"] in ["F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"] else "01"
+                        if len(new_value_str) != expected_len or not all(c in valid_chars for c in new_value_str):
+                            raise ValueError(f"Invalid format for {param['code']}: expected {'0000~1111' if param['code'] in ['F2.11', 'F2.12', 'F6.01'] else '00~11' if param['code'] == 'F9.11' else '000~432' if param['code'] == 'F2.13' else '0000~3212' if param['code'] == 'F4.00' else '000~621'}")
+                        digits = [int(c) for c in new_value_str]
+                        if param["code"] == "F9.11":
+                            tens, units = digits
+                            new_value = (tens << 4) | units
+                        elif param["code"] in ["F0.03", "F2.13", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"]:
+                            hundreds, tens, units = digits
+                            new_value = (hundreds << 8) | (tens << 4) | units
+                        else:
+                            thousands, hundreds, tens, units = digits
+                            new_value = (thousands << 12) | (hundreds << 8) | (tens << 4) | units
+                    else:
+                        new_value = self._scale_value(new_value_str, param["scale"])
+                    
+                    result = self.client.write_register(
+                        address=param["address"],
+                        value=new_value,
+                        slave=1
+                    )
+                    if not result.isError():
+                        self.loaded_settings[param["code"]] = new_value
+                        logger.info(f"Written {param['code']}: {new_value} (from {new_value_str})")
+                    else:
+                        logger.error(f"Failed to write {param['code']}")
+                        messagebox.showerror("Error", f"Error writing {param['code']}")
+                except (ValueError, ModbusException) as e:
+                    logger.error(f"Error processing {param['code']}: {e}")
+                    messagebox.showerror("Error", f"Error writing {param['code']}: {e}")
+            
+            messagebox.showinfo("Success", "Group changes successfully saved")
+        
+        finally:
+            if self.client:
+                self.client.close()
+    
+    def write_all_parameters(self):
+        """Write all parameters to the inverter, excluding FF and C groups"""
+        if not self.connect():
+            return
+        
+        if not messagebox.askyesno("Confirmation", "Are you sure you want to write parameters to the inverter?"):
+            logger.info("Writing all parameters canceled by user")
+            return
+        
+        try:
+            selected_group = self.selected_group.get()
+            group_parameters = [param for param in PARAMETERS if param["group"] == selected_group and param["group"] not in ["FF", "C"]]
+            updated_data = self.sheet.get_sheet_data()
+            for i, param in enumerate(group_parameters):
+                try:
+                    new_value_str = updated_data[i][2]
+                    if param["code"] in ["F0.03", "F2.11", "F2.12", "F6.01", "F9.11", "F2.13", "F4.00", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"]:
+                        expected_len = 2 if param["code"] == "F9.11" else 3 if param["code"] in ["F0.03", "F2.13", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"] else 4
+                        valid_chars = "01234" if param["code"] == "F2.13" else "0123" if param["code"] == "F4.00" else "0123456" if param["code"] in ["F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"] else "01"
+                        if len(new_value_str) == expected_len and all(c in valid_chars for c in new_value_str):
+                            digits = [int(c) for c in new_value_str]
+                            if param["code"] == "F9.11":
+                                tens, units = digits
+                                new_value = (tens << 4) | units
+                            elif param["code"] in ["F0.03", "F2.13", "F4.01", "F4.03", "F4.05", "F4.07", "F4.09", "F4.11", "F4.13"]:
+                                hundreds, tens, units = digits
+                                new_value = (hundreds << 8) | (tens << 4) | units
+                            else:
+                                thousands, hundreds, tens, units = digits
+                                new_value = (thousands << 12) | (hundreds << 8) | (tens << 4) | units
+                            self.loaded_settings[param["code"]] = new_value
+                    else:
+                        new_value = self._scale_value(new_value_str, param["scale"])
+                        self.loaded_settings[param["code"]] = new_value
+                except (ValueError, KeyError):
+                    pass
+            
+            for param in PARAMETERS:
+                if param["group"] in ["FF", "C"]:
+                    continue
+                code = param["code"]
+                if code in self.loaded_settings and self.loaded_settings[code] != "Error":
+                    try:
+                        new_value = self.loaded_settings[code]
+                        result = self.client.write_register(
+                            address=param["address"],
+                            value=new_value,
+                            slave=1
+                        )
+                        if not result.isError():
+                            logger.info(f"Written {code}: {new_value}")
+                        else:
+                            logger.error(f"Failed to write {code}")
+                            messagebox.showerror("Error", f"Error writing {code}")
+                    except (ValueError, ModbusException) as e:
+                        logger.error(f"Error writing {code}: {e}")
+                        messagebox.showerror("Error", f"Error writing {code}: {e}")
+            
+            self.read_parameters()
+            messagebox.showinfo("Success", "All parameters written to inverter")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error during writing: {e}")
+            logger.error(f"Error writing all parameters: {e}")
+        finally:
+            if self.client:
+                self.client.close()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = InverterParameterEditor(root)
+    root.mainloop()
