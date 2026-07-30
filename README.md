@@ -1,156 +1,141 @@
-# EDS800 Parameter Editor
+# ENC Inverter Parameter Editor
 
-**Version 1.8.5**
+**Version 2.2.2**
 
-A Python-based graphical user interface (GUI) application for reading, editing, and writing parameters to the EDS800 inverter via Modbus RTU protocol. The application uses a Tkinter-based interface with a table for parameter management and supports Binary-Coded Decimal (BCD) encoding for specific parameters. Parameters in groups `FF` (passwords and manufacturer settings) and `C` (monitoring) are excluded from reading, writing, and saving operations.
+A Tkinter desktop application for reading, editing, backing up, and restoring
+ENC inverter parameters over Modbus RTU.
 
-## Features
-- **Read Parameters**: Read parameters from a selected group or all groups (`F0`–`Fd`) from the inverter.
-- **Edit Parameters**: Modify parameter values in a table interface with validation for ranges and formats.
-- **Write Parameters**: Save changes for a selected group to the inverter.
-- **Write All Parameters**: Write all loaded parameters to the inverter (excluding `FF` and `C` groups).
-- **Save to File**: Save all parameters (excluding `FF` and `C`) to a JSON file.
-- **Load from File**: Load parameters from a JSON file into the table for editing.
-- **BCD Support**: Handles BCD encoding for parameters `F0.03`, `F2.11`, `F2.12`, `F6.01`, `F9.11`, `F2.13`, `F4.00`, `F4.01`, `F4.03`, `F4.05`, `F4.07`, `F4.09`, `F4.11`, `F4.13` (e.g., `1111` → `4369`, `010` → `16`).
-- **COM Port Selection**: Automatically detects and lists available COM ports for Modbus communication.
+## Interface
+
+- Sidebar with the connection card (model, serial port, Modbus ID, **Test
+  link**) and the group list with parameter counts; **All parameters** shows
+  the complete map.
+- Instant search over parameter codes and descriptions, plus a row filter
+  (`All`, `Writable`, `Read-only`, `Edited`, `Errors`).
+- Colour-coded table: edited cells are amber, failed reads are red, read-only
+  rows are dimmed and cannot be edited.
+- Details panel under the table with the address, group, writability, manual
+  page and the full option list of the selected parameter.
+- Status bar with the link indicator, live progress and a **Cancel** button;
+  all Modbus traffic runs on a worker thread, so the window never freezes.
+- Light and dark themes; the theme, model, port, Modbus ID and window size are
+  remembered in `~/.enc_inverter_editor.json`.
+
+Shortcuts: `F5` read group, `Ctrl+R` read all, `Ctrl+S` save to file,
+`Ctrl+O` load from file, `Ctrl+F` search, `Ctrl+T` switch theme, `Esc` clear
+the search or cancel a running operation.
+
+## Supported inverter profiles
+
+- **ENC EDS800** - 198 parameters in groups `F0` through `Fd`.
+- **ENC EN600-2S0007 — Auto revision** - probes `F02.26` before the first
+  operation and selects the matching map automatically.
+- **ENC EN600-2S0007 — V2.0-A2 (legacy)** - 562 parameters; retained for
+  older firmware where `F02.26` is unavailable.
+- **ENC EN600-2S0007 — V5.0-A13** - 651 parameters in 26 groups, including
+  `F02.26`, F17, F21, F22, F24, and documented reserved keypad rows.
+
+Select the inverter model before reading or loading settings. The group list,
+parameter map, scaling, read-only flags, and Modbus addresses change with the
+selected profile.
+
+Auto detection reads `F02.26` without writing anything. A value in its
+documented `95–115%` range selects V5.0-A13; otherwise the legacy V2.0-A2 map
+is used. Saved JSON files record the detected concrete revision.
 
 ## Requirements
-- **Python**: Version 3.6 or higher.
-- **Libraries**:
-  - `pymodbus`: For Modbus RTU communication.
-  - `tksheet`: For the table-based GUI.
-  - `pyserial`: For serial port communication.
-- **Hardware**: EDS800 inverter connected via a Modbus RTU-compatible serial interface (e.g., USB-to-RS485 adapter).
 
-## Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/eds800-parameter-editor.git
-   cd eds800-parameter-editor
-   ```
-2. Install required Python libraries:
-   ```bash
-   pip install pymodbus tksheet pyserial
-   ```
-3. Ensure the `parameters.py` file is in the same directory as `inverter_parameter_editor.py`. This file contains parameter definitions (codes, addresses, ranges, etc.).
+- Windows with Python 3.10 or newer (including Tcl/Tk)
+- A supported inverter connected through a USB-to-RS485 adapter
+- Default connection settings: 9600 baud, 8 data bits, no parity, 1 stop bit
+- Modbus device address 1
 
-## Usage
-1. **Run the Application**:
-   ```bash
-   python inverter_parameter_editor.py
-   ```
-2. **Interface Overview**:
-   - **COM Port Selection**: Choose a COM port from the dropdown menu or click "Refresh Ports" to update the list.
-   - **Group Selection**: Select a parameter group (`F0`–`Fd`) from the dropdown menu.
-   - **Table**: View and edit parameter values in the table. Only the "Value" column is editable.
-   - **Buttons**:
-     - **Read Group**: Read parameters for the selected group from the inverter.
-     - **Save Group**: Write edited parameters for the selected group to the inverter.
-     - **Read All Parameters**: Read all parameters (excluding `FF` and `C`) from the inverter.
-     - **Save All Settings to File**: Save all parameters to a JSON file.
-     - **Load from File**: Load parameters from a JSON file into the table.
-     - **Write All Parameters**: Write all loaded parameters to the inverter (last button).
+## Install
 
-3. **BCD Parameters**:
-   - The following parameters are handled in BCD format:
-     - `F0.03` (Run direction setting): Range `000~111` (e.g., `010` → raw `16`).
-     - `F2.11`, `F2.12` (LED display control): Range `0000~1111` (e.g., `1111` → raw `4369`).
-     - `F6.01` (Traverse run mode): Range `0000~1111`.
-     - `F9.11` (Protection action selection): Range `00~11` (e.g., `11` → raw `17`).
-     - `F2.13` (Parameter operation control): Range `000~432` (e.g., `432` → raw `1074`).
-     - `F4.00` (Simple PLC running setting): Range `0000~3212` (e.g., `3212` → raw `12818`).
-     - `F4.01`, `F4.03`, `F4.05`, `F4.07`, `F4.09`, `F4.11`, `F4.13` (Section settings): Range `000~621` (e.g., `621` → raw `1569`).
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-4. **Saving and Loading**:
-   - Save parameters to a JSON file (e.g., `settings.json`) using "Save All Settings to File".
-   - Load parameters from a JSON file (e.g., `2.json`) using "Load from File" for editing or writing to the inverter.
+## Run
 
-## Configuration
-- **parameters.py**: Ensure this file defines all parameters (`F0`–`Fd`) with correct attributes:
-  - `code`: Parameter code (e.g., `F0.03`).
-  - `description`: Parameter description.
-  - `unit`: Unit of measurement (e.g., `Hz`, `s`, or empty for BCD parameters).
-  - `address`: Modbus register address (e.g., `0x0003` for `F0.03`).
-  - `group`: Parameter group (e.g., `F0`).
-  - `default`: Default value.
-  - `scale`: Scaling factor (e.g., `100` for Hz, `1` for BCD).
-  - `range`: Valid range (e.g., `000~111` for `F0.03`).
-- Example entry in `parameters.py`:
-  ```python
-  PARAMETERS = [
-      {
-          "code": "F0.03", "description": "Run direction setting", "unit": "",
-          "address": 0x0003, "group": "F0", "default": "100", "scale": 1, "range": "000~111"
-      },
-      {
-          "code": "F2.11", "description": "LED display control 1", "unit": "",
-          "address": 0x020B, "group": "F2", "default": "1111", "scale": 1, "range": "0000~1111"
-      },
-      # Add other parameters as needed
-  ]
-  ```
+```powershell
+.\.venv\Scripts\python.exe inverter_parameter_editor.py
+```
 
-## Testing
-1. **Setup**:
-   - Connect the EDS800 inverter via a Modbus RTU-compatible serial interface.
-   - Ensure `parameters.py` is correctly configured.
+The program can be opened without an inverter. A COM port is required only for
+read/write operations. Both the COM port and Modbus device ID are selectable.
 
-2. **Verify Interface**:
-   - Run the program and check the button panel:
-     - Buttons: "Read All Parameters", "Save All Settings to File", "Load from File", "Write All Parameters" (in this order, with "Write All Parameters" last).
-   - Confirm that group `FF` is absent from the group dropdown.
+## Test
 
-3. **Test Parameter Operations**:
-   - **Read Group**: Select a group (e.g., `F0`) and click "Read Group". Verify that parameters like `F0.03` display correctly (e.g., `010` for raw `16`).
-   - **Save Group**: Edit a value (e.g., `F0.03` to `011`) and click "Save Group". Check the inverter display.
-   - **Read All Parameters**: Click "Read All Parameters" and verify that only `F0`–`Fd` parameters are loaded.
-   - **Save All Settings to File**: Save parameters to a JSON file and confirm it matches the format of `2.json`, containing only `F0`–`Fd`.
-   - **Load from File**: Load a JSON file (e.g., `2.json`) and verify that parameters display correctly in the table.
-   - **Write All Parameters**: Load a JSON file, edit values, and click "Write All Parameters". Verify that changes are applied to the inverter.
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
 
-4. **Test BCD Parameters**:
-   - Set non-zero values on the inverter and read:
-     - `F0.03`: Set `011`, expect raw `17`, displayed `011`.
-     - `F2.11`, `F2.12`: Set `1111`, expect raw `4369`, displayed `1111`.
-     - `F6.01`: Set `1111`, expect raw `4369`.
-     - `F9.11`: Set `11`, expect raw `17`.
-     - `F2.13`: Set `432`, expect raw `1074`.
-   - Check logs (e.g., in the console or a log file):
-     ```
-     Read F2.12: raw=4369, formatted=1111
-     Written F0.03: 16 (from 010)
-     Settings saved to file: settings.json
-     ```
+## Parameter handling
 
-5. **Troubleshooting**:
-   - If parameters `FF` or `C` appear, check `parameters.py` or share logs.
-   - If BCD decoding fails (e.g., `F6.01` displays incorrectly), verify raw values and report.
+- EDS800 examples: `F0.03 = 0x0003`, `F2.11 = 0x020B`, and
+  `Fd.14 = 0x0D0E`.
+- EN600 uses `PPnn` addressing: the group is the high byte and the decimal
+  function number is the low byte. Examples: `F05.03 = 0x0503` and
+  `F26.17 = 0x1A11`.
+- Decimal values are scaled according to the manual. For example, `50.25 Hz`
+  is stored as register value `5025`.
+- Packed-BCD keypad fields are decoded using their actual display width and
+  nibble position on EN600 (`F00.14: 0x0500 → 500`,
+  `F01.16: 0x1000 → 1000`, `F13.14: 0x0011 → 011`,
+  `F14.14: 0x2000 → 2000`). Hexadecimal selection fields such as `F10.01`
+  retain their hexadecimal notation.
+- Function-code references are decoded from packed register form; for example,
+  `F05.18: 0x2500 → 25.00` instead of treating decimal `9472` as a scaled
+  number.
+- Device-verified V5 PID gain formatting overrides the printed manual:
+  `F11.07: 50 → 000.50` and `F11.08: 25 → 00.25`.
+- `Fd` fault-history parameters and `F2.52` accumulated run time are read-only
+  on EDS800. Group `F26` is read-only on EN600.
+- Saved JSON files include the inverter profile and Modbus ID. Loading a file
+  automatically selects the matching profile and prevents cross-model writes.
+- Contiguous parameters are read in Modbus batches, with automatic fallback to
+  single-register reads when a model-specific register is unavailable. EN600
+  batches are limited to the documented maximum of 10 registers.
 
-## Logging
-- The program logs all operations to the console using Python's `logging` module.
-- Example logs:
-  ```
-  INFO: Read F0.03: raw=16, formatted=010
-  INFO: Settings saved to file: settings.json
-  ERROR: Failed to read F2.12
-  ```
-- To save logs to a file, modify the logging configuration in the code:
-  ```python
-  logging.basicConfig(level=logging.INFO, filename='eds800.log', filemode='w')
-  ```
+## EN600 communication setup
 
-## Known Limitations
-- Parameters `FF` and `C` are excluded from all operations to avoid accessing sensitive or read-only data.
-- Some BCD parameters (`F6.01`, `F9.11`, `F2.13`, `F4.00`, etc.) are assumed to use BCD based on their range but require non-zero value testing for confirmation.
-- The program assumes a Modbus RTU connection with baudrate 9600, no parity, 1 stop bit, and 8 data bits.
+For the default application connection, verify these keypad parameters:
 
-## Contributing
-- Fork the repository and submit pull requests for improvements.
-- Report issues or suggest features via GitHub Issues.
-- Ensure any changes to `parameters.py` align with the EDS800 manual (section 5.2).
+- `F05.00 = 0` - Modbus protocol.
+- `F05.01` units digit `5` - 9600 baud (displayed as BCD `005`).
+- `F05.02` units digit `0` - RTU, 8 data bits, no parity, 1 stop bit.
+- `F05.03` - inverter address; select the same value in **Modbus ID**.
 
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Password group `F27` and monitor group `C` are excluded. Rows explicitly
+marked reserved in the V5 manual remain visible so the map matches the keypad,
+but they are strictly read-only (for example, `F07.17 = 00000`).
 
-## Contact
-For questions or support, open an issue on GitHub or contact the maintainer at [timohovas@gmail.com].
+## Regenerating the EN600 parameter data
+
+The checked-in `profiles/en600_parameters.json` is generated from pages 57-98
+of the V5.0-A13 manual:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python tools\extract_en600_parameters.py EN500-EN600-Series-Manual-V5.0-A13.pdf profiles\en600_parameters.json
+```
+
+## Safety
+
+Writing inverter parameters can start, stop, or materially change motor
+behaviour. Disconnect the motor from hazardous loads, keep an original JSON
+backup, and verify model-specific motor values in group `F8` before using
+**Write all**. For EN600, verify motor group `F15`. Every write asks for
+confirmation and lists how many values were edited; values outside the
+documented range are reported and skipped.
+
+**Save changes** writes only cells edited in the current table. EN600 action
+parameters `F00.14` (reset/protection operations) and `F00.27`
+(upload/download) are never replayed by a bulk write unless explicitly edited.
+
+Parameter sources:
+
+- [ENC EDS800 Series Service Manual](https://thanglongautomation.com/upload/files/ENC-EDS800%20Manual.pdf)
+- [ENC EN500/EN600 V5.0-A13 User Manual](https://konel.ba/wp-content/uploads/2024/05/EN500-EN600-Series-Manual-V5.0-A13.pdf)
