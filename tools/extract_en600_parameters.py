@@ -1,8 +1,9 @@
-"""Extract EN500/EN600 function parameters from the V2.0-A2 service manual.
+"""Extract EN500/EN600 function parameters from a compatible manual.
 
 This is a reproducible data-generation utility.  The generated JSON is checked
 into the repository so the application does not need the PDF or pdfplumber at
-runtime.
+runtime. Page defaults target the V5.0-A13 function table; use explicit page
+arguments for other revisions.
 """
 
 from __future__ import annotations
@@ -72,6 +73,19 @@ def infer_unit(minimum_unit: str) -> str:
     unit = NUMBER_PATTERN.sub("", minimum_unit, count=1)
     unit = unit.replace("（", "(").replace("）", ")").strip(" ()")
     return unit.replace("％", "%")
+
+
+def normalize_default(value: str, encoding: str) -> tuple[str, str | None]:
+    """Split a manual default into an input-safe value and optional note."""
+    value = value.strip()
+    if not value:
+        return "", None
+    if encoding in {"bcd", "hex", "function_code"}:
+        return value, None
+    match = NUMBER_PATTERN.match(value)
+    if match:
+        return match.group(), None
+    return "", value
 
 
 def infer_limits(
@@ -221,6 +235,9 @@ def extract_parameters(
                         scale = 1
                         minimum, maximum = 0.0, 65.0
 
+                    input_default, default_note = normalize_default(default, encoding)
+                    if encoding == "bcd" and input_default:
+                        input_default = input_default.zfill(display_width)
                     parameter: dict[str, object] = {
                         "code": code,
                         "description": description,
@@ -230,7 +247,7 @@ def extract_parameters(
                         "unit": infer_unit(minimum_unit),
                         "address": (group_number << 8) | parameter_number,
                         "group": f"F{group_number:02d}",
-                        "default": default,
+                        "default": input_default,
                         "scale": scale,
                         "encoding": encoding,
                         "read_only": reserved or modification == "*",
@@ -256,6 +273,8 @@ def extract_parameters(
                         parameter["display_width"] = display_width
                     if display_integer_digits is not None:
                         parameter["display_integer_digits"] = display_integer_digits
+                    if default_note:
+                        parameter["default_note"] = default_note
                     if code in {"F00.14", "F00.27"}:
                         # These fields execute reset/copy operations. Never
                         # replay a read value during a bulk write.

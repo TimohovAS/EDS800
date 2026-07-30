@@ -55,6 +55,25 @@ def _load_json_parameters(filename: str) -> tuple[dict[str, Any], ...]:
             raise RuntimeError(
                 f"{filename}: {parameter.get('code', '?')} is missing {sorted(missing)}"
             )
+        default = parameter["default"]
+        if not isinstance(default, str):
+            raise RuntimeError(
+                f"{filename}: {parameter['code']} default must be a string"
+            )
+        if default and parameter["encoding"] == "numeric":
+            try:
+                float(default)
+            except ValueError as exc:
+                raise RuntimeError(
+                    f"{filename}: {parameter['code']} has non-numeric default {default!r}"
+                ) from exc
+        if "default_note" in parameter and not isinstance(
+            parameter["default_note"],
+            str,
+        ):
+            raise RuntimeError(
+                f"{filename}: {parameter['code']} default_note must be a string"
+            )
     codes = [parameter["code"] for parameter in parameters]
     addresses = [parameter["address"] for parameter in parameters]
     if len(codes) != len(set(codes)) or len(addresses) != len(set(addresses)):

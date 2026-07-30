@@ -42,7 +42,7 @@ def _plural(count: int, noun: str) -> str:
 
 
 class InverterParameterEditor:
-    VERSION = "2.2.2"
+    VERSION = "2.2.3"
 
     COLUMNS = ("Code", "Parameter", "Value", "Unit", "Default", "Range / options")
     COLUMN_WIDTHS = (80, 300, 100, 60, 80, 380)
@@ -230,7 +230,7 @@ class InverterParameterEditor:
 
         for text, command, style_name in (
             ("↓ Read group", self.read_parameters, "Accent.TButton"),
-            ("↑ Write group", self.save_changes, "TButton"),
+            ("↑ Write edited", self.save_changes, "TButton"),
             ("↓ Read all", self.read_all_parameters, "TButton"),
             ("↑ Write all", self.write_all_parameters, "TButton"),
         ):
@@ -381,6 +381,10 @@ class InverterParameterEditor:
     # ------------------------------------------------------------------
     def change_profile(self, event=None):
         """Switch parameter maps without carrying values between inverter models."""
+        if self._busy:
+            self.selected_profile_label.set(self.profile.label)
+            self._set_status("Wait for the current operation to finish", "warning")
+            return
         profile_key = PROFILE_LABELS[self.selected_profile_label.get()]
         self._activate_profile(PROFILES[profile_key])
 
@@ -391,52 +395,30 @@ class InverterParameterEditor:
         failed = set(self.failed_codes) if preserve_values else set()
         self.profile = profile
         self.selected_profile_label.set(profile.label)
-        self.selected_device_id.set(self.profile.default_device_id)
+        if not preserve_values:
+            self.selected_device_id.set(self.profile.default_device_id)
         known = {parameter["code"] for parameter in profile.parameters}
         self.loaded_settings = {code: value for code, value in loaded.items() if code in known}
         self.edited_values = {code: value for code, value in edited.items() if code in known}
         self.failed_codes = failed & known
-        self.selected_group.set(ALL_GROUPS)
+        if not preserve_values or self.selected_group.get() not in profile.groups:
+            self.selected_group.set(ALL_GROUPS)
         self._populate_groups()
         self.update_table()
         self._update_titles()
         self._set_status(status or f"Loaded parameter map for {self.profile.model}")
         logger.info("Selected inverter profile: %s", self.profile.label)
 
-    def _ensure_auto_revision(self) -> bool:
-        """Resolve the EN600 auto profile by probing V5-only parameter F02.26."""
-        if self.profile.key != "en600_2s0007":
-            return True
-        if not self._prepare_connection():
-            return False
+    def _probe_auto_revision(self, _progress):
+        """Probe the V5-only register on the active Modbus worker."""
+        link = self._read_register(0x0000)
+        probe = self._read_register(0x021A)
+        if link.isError():
+            raise ConnectionError(str(link))
+        return None if probe.isError() else probe.registers[0]
 
-        client = None
-        try:
-            client = self._open_client()
-            try:
-                link = client.read_holding_registers(
-                    address=0x0000, count=1, device_id=self._device_id
-                )
-                probe = client.read_holding_registers(
-                    address=0x021A, count=1, device_id=self._device_id
-                )
-            except TypeError:
-                link = client.read_holding_registers(
-                    address=0x0000, count=1, slave=self._device_id
-                )
-                probe = client.read_holding_registers(
-                    address=0x021A, count=1, slave=self._device_id
-                )
-            if link.isError():
-                raise ConnectionError(str(link))
-            value = None if probe.isError() else probe.registers[0]
-        except Exception as exc:
-            messagebox.showerror("Revision detection", str(exc))
-            return False
-        finally:
-            if client is not None:
-                client.close()
-
+    def _auto_revision_finished(self, value, continuation):
+        """Activate the detected map on the UI thread, then resume the action."""
         profile_key = (
             "en600_2s0007_v5"
             if value is not None and 95 <= value <= 115
@@ -448,7 +430,21 @@ class InverterParameterEditor:
             f"Detected {detected.model} (F02.26 = {value if value is not None else 'N/A'})",
             preserve_values=True,
         )
-        return True
+        continuation()
+
+    def _run_after_profile_detection(self, continuation):
+        """Run an action after non-blocking EN600 revision detection."""
+        if self._busy:
+            self._set_status("Another operation is still running", "warning")
+            return
+        if self.profile.key != "en600_2s0007":
+            continuation()
+            return
+        self._start_task(
+            "Detecting inverter revision",
+            self._probe_auto_revision,
+            lambda value: self._auto_revision_finished(value, continuation),
+        )
 
     def refresh_ports(self, announce=True):
         """Refresh the list of available COM ports."""
@@ -528,7 +524,7 @@ class InverterParameterEditor:
                 param["description"],
                 self._display_value(param),
                 param["unit"],
-                param["default"],
+                self._default_display(param),
                 self._short_range(param["range"]),
             ]
             for param in rows
@@ -557,6 +553,11 @@ class InverterParameterEditor:
 
     def _display_value(self, param) -> str:
         return self.edited_values.get(param["code"], self._baseline_display(param))
+
+    @staticmethod
+    def _default_display(param) -> str:
+        """Show a writable default value, or the manual's explanatory note."""
+        return param.get("default") or param.get("default_note", "")
 
     def _baseline_display(self, param) -> str:
         code = param["code"]
@@ -639,8 +640,9 @@ class InverterParameterEditor:
         self.details_title.configure(text=f"{param['code']}  ·  {param['description']}")
         self.details_meta.configure(text="  ·  ".join(meta))
 
-        unit = f" {param['unit']}" if param["unit"] else ""
-        body = f"Default {param['default']}{unit}\n{param['range']}"
+        default = self._default_display(param) or "—"
+        unit = f" {param['unit']}" if param["unit"] and param["default"] else ""
+        body = f"Default {default}{unit}\n{param['range']}"
         self.details_text.configure(state="normal")
         self.details_text.delete("1.0", "end")
         self.details_text.insert("1.0", body, "body")
@@ -740,12 +742,11 @@ class InverterParameterEditor:
                 return ""
             if param.get("encoding") == "bcd":
                 value = int(value) & 0xFFFF
-                shift_offset = int(param.get("bcd_shift", 0)) * 4
                 digits = [
                     (value >> shift) & 0x0F
                     for shift in range(
-                        (param["digits"] - 1) * 4 + shift_offset,
-                        shift_offset - 1,
+                        (param["digits"] - 1) * 4,
+                        -1,
                         -4,
                     )
                 ]
@@ -792,7 +793,7 @@ class InverterParameterEditor:
                 encoded = 0
                 for char in value:
                     encoded = (encoded << 4) | int(char)
-                return encoded << (int(param.get("bcd_shift", 0)) * 4)
+                return encoded
             if param.get("encoding") == "hex":
                 return int(value.upper().removesuffix("H"), 16)
             if param.get("encoding") == "function_code":
@@ -1071,17 +1072,18 @@ class InverterParameterEditor:
     # ------------------------------------------------------------------
     def test_connection(self):
         """Read a single register to confirm the link and the Modbus ID."""
-        if not self._ensure_auto_revision():
-            return
-        parameter = self.profile.parameters[0]
+        def start():
+            parameter = self.profile.parameters[0]
 
-        def work(_progress):
-            result = self._read_register(parameter["address"])
-            if result.isError():
-                raise ModbusException(str(result))
-            return parameter["code"], result.registers[0]
+            def work(_progress):
+                result = self._read_register(parameter["address"])
+                if result.isError():
+                    raise ModbusException(str(result))
+                return parameter["code"], result.registers[0]
 
-        self._start_task("Testing link", work, self._link_test_finished)
+            self._start_task("Testing link", work, self._link_test_finished)
+
+        self._run_after_profile_detection(start)
 
     def _link_test_finished(self, result):
         code, value = result
@@ -1090,24 +1092,30 @@ class InverterParameterEditor:
 
     def read_parameters(self):
         """Read the parameters of the selected group from the inverter."""
-        if not self._ensure_auto_revision():
-            return
-        parameters = self._group_parameters()
-        if not parameters:
-            messagebox.showwarning("Nothing to read", "This group has no parameters")
-            return
-        title = f"Reading {self.selected_group.get()}"
-        self._start_task(title, lambda progress: self._read_parameter_values(parameters, progress), self._read_finished)
+        def start():
+            parameters = self._group_parameters()
+            if not parameters:
+                messagebox.showwarning("Nothing to read", "This group has no parameters")
+                return
+            title = f"Reading {self.selected_group.get()}"
+            self._start_task(
+                title,
+                lambda progress: self._read_parameter_values(parameters, progress),
+                self._read_finished,
+            )
+
+        self._run_after_profile_detection(start)
 
     def read_all_parameters(self):
         """Read every parameter defined by the selected inverter profile."""
-        if not self._ensure_auto_revision():
-            return
-        self._start_task(
-            f"Reading all {len(self.profile.parameters)} parameters",
-            lambda progress: self._read_parameter_values(self.profile.parameters, progress),
-            self._read_finished,
-        )
+        def start():
+            self._start_task(
+                f"Reading all {len(self.profile.parameters)} parameters",
+                lambda progress: self._read_parameter_values(self.profile.parameters, progress),
+                self._read_finished,
+            )
+
+        self._run_after_profile_detection(start)
 
     def _read_finished(self, values):
         for code, value in values.items():
@@ -1126,21 +1134,25 @@ class InverterParameterEditor:
         logger.info("Read %s/%s parameters for %s", successful, len(values), self.profile.model)
 
     def save_changes(self):
-        """Write the current group back to the inverter."""
-        if not self._ensure_auto_revision():
-            return
-        group = self.selected_group.get()
-        self._write_parameters(
-            self._group_parameters(),
-            f"group {group}" if group != ALL_GROUPS else "all groups",
-            edited_only=True,
-        )
+        """Write only edited cells from the current group or all-groups view."""
+        def start():
+            group = self.selected_group.get()
+            self._write_parameters(
+                self._group_parameters(),
+                f"group {group}" if group != ALL_GROUPS else "all groups",
+                edited_only=True,
+            )
+
+        self._run_after_profile_detection(start)
 
     def write_all_parameters(self):
         """Write every known writable value back to the inverter."""
-        if not self._ensure_auto_revision():
-            return
-        self._write_parameters(list(self.profile.parameters), "all parameters")
+        self._run_after_profile_detection(
+            lambda: self._write_parameters(
+                list(self.profile.parameters),
+                "all parameters",
+            )
+        )
 
     def _collect_write_targets(self, parameters, edited_only=False):
         """Pair writable parameters with the value shown in the table."""
@@ -1229,24 +1241,25 @@ class InverterParameterEditor:
     # ------------------------------------------------------------------
     def save_to_file(self):
         """Read every writable parameter and store it as JSON."""
-        if not self._ensure_auto_revision():
-            return
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            initialfile=f"{self.profile.key}_settings.json",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            title="Save settings to file",
-        )
-        if not file_path:
-            logger.info("Saving cancelled by user")
-            return
+        def start():
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                initialfile=f"{self.profile.key}_settings.json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                title="Save settings to file",
+            )
+            if not file_path:
+                logger.info("Saving cancelled by user")
+                return
 
-        writable = [p for p in self.profile.parameters if not p.get("read_only")]
-        self._start_task(
-            "Reading settings to save",
-            lambda progress: self._read_parameter_values(writable, progress),
-            lambda values: self._write_settings_file(file_path, values),
-        )
+            writable = [p for p in self.profile.parameters if not p.get("read_only")]
+            self._start_task(
+                "Reading settings to save",
+                lambda progress: self._read_parameter_values(writable, progress),
+                lambda values: self._write_settings_file(file_path, values),
+            )
+
+        self._run_after_profile_detection(start)
 
     def _write_settings_file(self, file_path, settings):
         payload = {
@@ -1269,6 +1282,9 @@ class InverterParameterEditor:
 
     def load_from_file(self):
         """Load settings from a file into the table."""
+        if self._busy:
+            self._set_status("Another operation is still running", "warning")
+            return
         file_path = filedialog.askopenfilename(
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
             title="Load settings from file",

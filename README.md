@@ -1,6 +1,6 @@
 # ENC Inverter Parameter Editor
 
-**Version 2.2.2**
+**Version 2.2.3**
 
 A Tkinter desktop application for reading, editing, backing up, and restoring
 ENC inverter parameters over Modbus RTU.
@@ -114,12 +114,13 @@ but they are strictly read-only (for example, `F07.17 = 00000`).
 
 ## Regenerating the EN600 parameter data
 
-The checked-in `profiles/en600_parameters.json` is generated from pages 57-98
-of the V5.0-A13 manual:
+The checked-in `profiles/en600_v5_parameters.json` is generated from pages
+57-98 of the V5.0-A13 manual. The legacy V2 map remains in the separate
+`profiles/en600_parameters.json` file:
 
 ```powershell
 python -m pip install -r requirements-dev.txt
-python tools\extract_en600_parameters.py EN500-EN600-Series-Manual-V5.0-A13.pdf profiles\en600_parameters.json
+python tools\extract_en600_parameters.py EN500-EN600-Series-Manual-V5.0-A13.pdf profiles\en600_v5_parameters.json
 ```
 
 ## Safety
@@ -131,7 +132,7 @@ backup, and verify model-specific motor values in group `F8` before using
 confirmation and lists how many values were edited; values outside the
 documented range are reported and skipped.
 
-**Save changes** writes only cells edited in the current table. EN600 action
+**Write edited** writes only cells edited in the current table. EN600 action
 parameters `F00.14` (reset/protection operations) and `F00.27`
 (upload/download) are never replayed by a bulk write unless explicitly edited.
 

@@ -1,7 +1,13 @@
 import unittest
+from unittest.mock import Mock
 
 from inverter_parameter_editor import InverterParameterEditor
-from inverter_profiles import EN600_2S0007_PROFILE, EN600_V2_PROFILE, PROFILES
+from inverter_profiles import (
+    EN600_2S0007_PROFILE,
+    EN600_AUTO_PROFILE,
+    EN600_V2_PROFILE,
+    PROFILES,
+)
 
 
 class InverterProfileTests(unittest.TestCase):
@@ -21,6 +27,54 @@ class InverterProfileTests(unittest.TestCase):
                 "en600_2s0007_v2",
                 "en600_2s0007_v5",
             },
+        )
+
+    def test_detected_profile_preserves_modbus_id_and_selected_group(self):
+        editor = InverterParameterEditor.__new__(InverterParameterEditor)
+        editor.profile = EN600_AUTO_PROFILE
+        editor.loaded_settings = {}
+        editor.edited_values = {}
+        editor.failed_codes = set()
+        editor.selected_profile_label = Mock()
+        editor.selected_device_id = Mock()
+        editor.selected_group = Mock()
+        editor.selected_group.get.return_value = "F11"
+        editor._populate_groups = Mock()
+        editor.update_table = Mock()
+        editor._update_titles = Mock()
+        editor._set_status = Mock()
+
+        editor._activate_profile(EN600_2S0007_PROFILE, preserve_values=True)
+
+        editor.selected_device_id.set.assert_not_called()
+        editor.selected_group.set.assert_not_called()
+
+    def test_auto_detection_is_scheduled_and_busy_guarded(self):
+        editor = InverterParameterEditor.__new__(InverterParameterEditor)
+        editor.profile = EN600_AUTO_PROFILE
+        editor._busy = False
+        editor._start_task = Mock()
+        editor._open_client = Mock()
+        continuation = Mock()
+
+        editor._run_after_profile_detection(continuation)
+
+        editor._start_task.assert_called_once()
+        self.assertEqual(
+            editor._start_task.call_args.args[0],
+            "Detecting inverter revision",
+        )
+        editor._open_client.assert_not_called()
+        continuation.assert_not_called()
+
+        editor._busy = True
+        editor._set_status = Mock()
+        editor._start_task.reset_mock()
+        editor._run_after_profile_detection(continuation)
+        editor._start_task.assert_not_called()
+        editor._set_status.assert_called_once_with(
+            "Another operation is still running",
+            "warning",
         )
 
     def test_en600_parameter_map_is_complete_and_unique(self):
@@ -170,6 +224,28 @@ class InverterProfileTests(unittest.TestCase):
         ]
         self.assertTrue(fault_records)
         self.assertTrue(all(parameter["read_only"] for parameter in fault_records))
+
+    def test_en600_defaults_are_input_safe_or_explicit_notes(self):
+        for profile in (EN600_V2_PROFILE, EN600_2S0007_PROFILE):
+            for parameter in profile.parameters:
+                with self.subTest(profile=profile.key, code=parameter["code"]):
+                    default = parameter["default"]
+                    if not default:
+                        continue
+                    if parameter["encoding"] == "numeric":
+                        float(default)
+                    encoded = self.editor._encode_value(parameter, default)
+                    self.assertLessEqual(0, encoded)
+                    self.assertLessEqual(encoded, 0xFFFF)
+                    if parameter["read_only"]:
+                        continue
+                    self.assertIsNone(self.editor._value_error(parameter, default))
+        motor_default = self.by_code["F15.01"]
+        self.assertEqual(motor_default["default"], "")
+        self.assertEqual(
+            self.editor._default_display(motor_default),
+            motor_default["default_note"],
+        )
 
 
 if __name__ == "__main__":
