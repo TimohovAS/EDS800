@@ -236,6 +236,26 @@ def _validate_parameters(
         if note is not None and not isinstance(note, str):
             raise CatalogError(f"{key}: {code} default_note must be a string")
 
+        # A writable parameter is one 16-bit register; a wider documented
+        # maximum means the row was transcribed as the wrong kind of field.
+        if not parameter.get("read_only"):
+            raw_maximum = parameter["maximum"] * parameter["scale"]
+            if raw_maximum > 0xFFFF:
+                raise CatalogError(
+                    f"{key}: {code} maximum {parameter['maximum']} does not fit "
+                    f"a 16-bit register"
+                )
+
+        digit_limits = parameter.get("digit_limits")
+        if digit_limits is not None:
+            if not isinstance(digit_limits, str) or not digit_limits:
+                raise CatalogError(f"{key}: {code} digit_limits must be a non-empty string")
+            if parameter.get("digits") and len(digit_limits) != parameter["digits"]:
+                raise CatalogError(
+                    f"{key}: {code} digit_limits {digit_limits!r} does not match "
+                    f"{parameter['digits']} digits"
+                )
+
 
 def _load_translations(
     key: str, directory: Path, declared: Mapping[str, str], codes: set[str]

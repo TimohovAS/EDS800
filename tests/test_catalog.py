@@ -67,6 +67,39 @@ class CatalogInvariantTests(unittest.TestCase):
                     if not default:
                         self.assertIsInstance(parameter.get("default_note", ""), str)
 
+    def test_writable_maximums_fit_one_register(self):
+        for profile in CATALOG:
+            for parameter in profile.parameters:
+                if parameter.get("read_only"):
+                    continue
+                with self.subTest(profile=profile.key, code=parameter["code"]):
+                    self.assertLessEqual(parameter["maximum"] * parameter["scale"], 0xFFFF)
+
+    def test_digit_limits_match_the_field_width(self):
+        for profile in CATALOG:
+            for parameter in profile.parameters:
+                limits = parameter.get("digit_limits")
+                if not limits:
+                    continue
+                with self.subTest(profile=profile.key, code=parameter["code"]):
+                    width = parameter.get("digits") or parameter.get("display_width")
+                    self.assertEqual(len(limits), width)
+                    self.assertTrue(all(c == "*" or c in "0123456789ABCDEF" for c in limits))
+
+    def test_keypad_fields_carry_digit_limits(self):
+        """Digit fields without limits would accept impossible combinations."""
+        for profile in CATALOG:
+            missing = [
+                parameter["code"]
+                for parameter in profile.parameters
+                if parameter["encoding"] in ("bcd", "hex")
+                and not parameter.get("read_only")
+                and not parameter.get("digit_limits")
+            ]
+            with self.subTest(profile=profile.key):
+                # Only rows whose manual text is unusable may lack limits.
+                self.assertLessEqual(len(missing), 1, missing)
+
     def test_documented_defaults_pass_validation(self):
         """A default the manual prints must be a value the editor accepts."""
         for profile in CATALOG:

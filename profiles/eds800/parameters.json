@@ -59,7 +59,8 @@
     "digits": 3,
     "digit_chars": "01",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "111"
   },
   {
     "code": "F0.04",
@@ -557,7 +558,8 @@
     "digits": 4,
     "digit_chars": "01",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "1111"
   },
   {
     "code": "F2.12",
@@ -574,7 +576,8 @@
     "digits": 4,
     "digit_chars": "01",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "1111"
   },
   {
     "code": "F2.13",
@@ -591,7 +594,8 @@
     "digits": 3,
     "digit_chars": "01234",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "432"
   },
   {
     "code": "F2.14",
@@ -608,7 +612,8 @@
     "digits": 3,
     "digit_chars": "012345",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "125"
   },
   {
     "code": "F2.15",
@@ -1585,7 +1590,8 @@
     "digits": 4,
     "digit_chars": "0123",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "3212"
   },
   {
     "code": "F4.01",
@@ -1602,7 +1608,8 @@
     "digits": 3,
     "digit_chars": "0123456",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "621"
   },
   {
     "code": "F4.02",
@@ -1634,7 +1641,8 @@
     "digits": 3,
     "digit_chars": "0123456",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "621"
   },
   {
     "code": "F4.04",
@@ -1666,7 +1674,8 @@
     "digits": 3,
     "digit_chars": "0123456",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "621"
   },
   {
     "code": "F4.06",
@@ -1698,7 +1707,8 @@
     "digits": 3,
     "digit_chars": "0123456",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "621"
   },
   {
     "code": "F4.08",
@@ -1730,7 +1740,8 @@
     "digits": 3,
     "digit_chars": "0123456",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "621"
   },
   {
     "code": "F4.10",
@@ -1762,7 +1773,8 @@
     "digits": 3,
     "digit_chars": "0123456",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "621"
   },
   {
     "code": "F4.12",
@@ -1794,7 +1806,8 @@
     "digits": 3,
     "digit_chars": "0123456",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "621"
   },
   {
     "code": "F4.14",
@@ -2126,7 +2139,8 @@
     "digits": 2,
     "digit_chars": "01",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "digit_limits": "11"
   },
   {
     "code": "F6.02",

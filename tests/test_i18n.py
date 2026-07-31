@@ -122,6 +122,7 @@ class TranslatorTests(unittest.TestCase):
             "digits": 3,
             "chars": "0123456789",
             "profile": "eds800",
+            "pattern": "2112",
         }
         for language in TRANSLATIONS:
             translator = Translator(language)

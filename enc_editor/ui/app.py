@@ -56,7 +56,12 @@ class InverterParameterEditor:
         self.style = ttk.Style(root)
 
         self.catalog = catalog or load_catalog()
-        profile = self.catalog.get(self.preferences.get("profile")) or next(iter(self.catalog))
+        stored_profile = self.preferences.get("profile")
+        profile = self.catalog.get(stored_profile)
+        # A profile that disappeared (renamed, removed) must not silently turn
+        # into a different inverter model.
+        self._missing_profile = stored_profile if profile is None and stored_profile else None
+        profile = profile or next(iter(self.catalog))
         self.session = Session(profile)
 
         # Tk variables
@@ -94,6 +99,18 @@ class InverterParameterEditor:
         self._populate_groups()
         self.update_table()
         self._update_titles()
+        if self._missing_profile:
+            self._set_status(
+                "status.profile_missing",
+                "warning",
+                profile=self._missing_profile,
+                model=self.profile.model,
+            )
+            logger.warning(
+                "Stored profile %s is unknown; using %s",
+                self._missing_profile,
+                self.profile.key,
+            )
 
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -329,7 +346,7 @@ class InverterParameterEditor:
 
         self.details_text = tk.Text(
             details,
-            height=4,
+            height=5,
             wrap="word",
             relief="flat",
             highlightthickness=0,
@@ -339,7 +356,26 @@ class InverterParameterEditor:
             pady=6,
         )
         self.details_text.grid(row=1, column=0, sticky="ew")
+        # Option lists run to several hundred characters, so the panel scrolls.
+        self.details_scroll = ttk.Scrollbar(
+            details, orient="vertical", command=self.details_text.yview
+        )
+        self.details_scroll.grid(row=1, column=1, sticky="ns", padx=(6, 0))
+        self.details_text.configure(yscrollcommand=self._on_details_scroll)
+        self.details_text.bind("<MouseWheel>", self._on_details_wheel)
         self.details_text.configure(state="disabled")
+
+    def _on_details_scroll(self, first, last):
+        """Hide the scrollbar while the whole text already fits."""
+        self.details_scroll.set(first, last)
+        if float(first) <= 0.0 and float(last) >= 1.0:
+            self.details_scroll.grid_remove()
+        else:
+            self.details_scroll.grid()
+
+    def _on_details_wheel(self, event):
+        self.details_text.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        return "break"
 
     def _build_statusbar(self):
         bar = ttk.Frame(self.root, style="Status.TFrame", padding=(14, 8))

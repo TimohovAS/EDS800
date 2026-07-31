@@ -114,6 +114,35 @@ class EditorWindowTests(unittest.TestCase):
         self.assertEqual(self.app.status_text.get(), self.app.t("status.busy"))
         self.app._busy = False
 
+    def test_unknown_stored_profile_is_reported_not_swapped_silently(self):
+        from enc_editor.ui.app import InverterParameterEditor
+
+        InverterParameterEditor._load_preferences = lambda self: {"profile": "gone_model"}
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            app = InverterParameterEditor(root, catalog=CATALOG)
+            app.set_language("en")
+            self.assertEqual(app._missing_profile, "gone_model")
+            self.assertIn("gone_model", app.status_text.get())
+            self.assertIn(app.profile.model, app.status_text.get())
+        finally:
+            InverterParameterEditor._load_preferences = lambda self: {}
+            root.update_idletasks()
+            root.destroy()
+
+    def test_details_panel_can_scroll_long_option_lists(self):
+        self.app._activate_profile(CATALOG["en600_v5"])
+        longest = max(self.app.profile.parameters, key=lambda p: len(p["range"]))
+        self.app._show_details(longest)
+        self.assertGreater(len(longest["range"]), 500)
+        self.assertTrue(self.app.details_text.cget("yscrollcommand"))
+        # The scrollbar appears exactly when the text does not fit.
+        self.app._on_details_scroll("0.0", "0.4")
+        self.assertTrue(self.app.details_scroll.winfo_manager())
+        self.app._on_details_scroll("0.0", "1.0")
+        self.assertFalse(self.app.details_scroll.winfo_manager())
+
     def test_settings_error_messages_are_localized(self):
         message = self.app._settings_error_text(ValueError("unknown-profile:nope"))
         self.assertIn("nope", message)

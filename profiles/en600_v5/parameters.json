@@ -241,7 +241,8 @@
     "digits": 3,
     "digit_chars": "0123456789",
     "display_width": 3,
-    "write_only_if_edited": true
+    "write_only_if_edited": true,
+    "digit_limits": "552"
   },
   {
     "code": "F00.15",
@@ -260,7 +261,8 @@
     "manual_pdf_page": 60,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1151"
   },
   {
     "code": "F00.16",
@@ -343,7 +345,8 @@
     "manual_pdf_page": 60,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "2211"
   },
   {
     "code": "F00.21",
@@ -362,7 +365,8 @@
     "manual_pdf_page": 60,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "**11"
   },
   {
     "code": "F00.22",
@@ -381,7 +385,8 @@
     "manual_pdf_page": 61,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1***"
   },
   {
     "code": "F00.23",
@@ -465,7 +470,8 @@
     "digits": 2,
     "digit_chars": "0123456789",
     "display_width": 2,
-    "write_only_if_edited": true
+    "write_only_if_edited": true,
+    "digit_limits": "32"
   },
   {
     "code": "F01.00",
@@ -516,7 +522,8 @@
     "manual_pdf_page": 62,
     "digits": 3,
     "digit_chars": "0123456789",
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "111"
   },
   {
     "code": "F01.03",
@@ -567,7 +574,8 @@
     "manual_pdf_page": 62,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "11"
   },
   {
     "code": "F01.06",
@@ -746,7 +754,8 @@
     "manual_pdf_page": 63,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1121"
   },
   {
     "code": "F01.17",
@@ -799,7 +808,8 @@
     "manual_pdf_page": 64,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "12"
   },
   {
     "code": "F01.20",
@@ -1780,7 +1790,8 @@
     "manual_pdf_page": 66,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1111"
   },
   {
     "code": "F04.11",
@@ -2343,7 +2354,8 @@
     "manual_pdf_page": 67,
     "digits": 3,
     "digit_chars": "0123456789",
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "*19"
   },
   {
     "code": "F05.02",
@@ -2362,7 +2374,8 @@
     "manual_pdf_page": 68,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1235"
   },
   {
     "code": "F05.03",
@@ -2462,7 +2475,8 @@
     "digits": 2,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": true,
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "FF"
   },
   {
     "code": "F05.09",
@@ -2987,7 +3001,8 @@
     "manual_pdf_page": 70,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "2222"
   },
   {
     "code": "F06.01",
@@ -3313,8 +3328,8 @@
     "code": "F06.21",
     "description": "Curve lower than min. input corresponding selection",
     "range": "C NUnits digit: Curve 1 setting 0: Corresponds to min. setting corresponding physical quantity. 1: 0.0% of the corresponding physical quantity. Tens digit: Curve 2 setting Same as units digit. Hundreds digit: Curve 3 setting Same as units digit. Thousands digit: Extended curve 1 Same as units digit. Ten thousands digit: Extended curve 2 Same as units digit.",
-    "minimum": 0.0,
-    "maximum": 99999.0,
+    "minimum": 0,
+    "maximum": 11111,
     "unit": "",
     "address": 1557,
     "group": "F06",
@@ -3324,6 +3339,7 @@
     "read_only": false,
     "change_while_running": true,
     "manual_pdf_page": 71,
+    "digit_limits": "11111",
     "display_width": 5
   },
   {
@@ -3439,7 +3455,8 @@
     "manual_pdf_page": 71,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "11"
   },
   {
     "code": "F07.07",
@@ -3602,7 +3619,8 @@
     "manual_pdf_page": 72,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "22"
   },
   {
     "code": "F07.17",
@@ -4135,7 +4153,8 @@
     "manual_pdf_page": 75,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "11"
   },
   {
     "code": "F09.00",
@@ -4971,7 +4990,8 @@
     "manual_pdf_page": 78,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "***1"
   },
   {
     "code": "F10.01",
@@ -4991,7 +5011,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.02",
@@ -5011,7 +5032,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.03",
@@ -5031,7 +5053,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.04",
@@ -5051,7 +5074,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.05",
@@ -5071,7 +5095,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.06",
@@ -5091,7 +5116,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.07",
@@ -5111,7 +5137,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.08",
@@ -5131,7 +5158,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.09",
@@ -5151,7 +5179,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.10",
@@ -5171,7 +5200,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.11",
@@ -5191,7 +5221,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.12",
@@ -5211,7 +5242,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.13",
@@ -5231,7 +5263,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.14",
@@ -5251,7 +5284,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.15",
@@ -5271,7 +5305,8 @@
     "digits": 3,
     "digit_chars": "0123456789ABCDEF",
     "hex_suffix": false,
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "E22"
   },
   {
     "code": "F10.16",
@@ -6508,7 +6543,8 @@
     "manual_pdf_page": 82,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "**11"
   },
   {
     "code": "F13.02",
@@ -6703,7 +6739,8 @@
     "manual_pdf_page": 83,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "222*"
   },
   {
     "code": "F13.14",
@@ -6722,7 +6759,8 @@
     "manual_pdf_page": 83,
     "digits": 3,
     "digit_chars": "0123456789",
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "111"
   },
   {
     "code": "F14.00",
@@ -6949,7 +6987,8 @@
     "manual_pdf_page": 84,
     "digits": 3,
     "digit_chars": "0123456789",
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "*88"
   },
   {
     "code": "F14.14",
@@ -6968,7 +7007,8 @@
     "manual_pdf_page": 85,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "2112"
   },
   {
     "code": "F14.15",
@@ -7493,7 +7533,8 @@
     "manual_pdf_page": 87,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "31"
   },
   {
     "code": "F16.03",
@@ -7913,7 +7954,8 @@
     "manual_pdf_page": 89,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1211"
   },
   {
     "code": "F18.04",
@@ -8124,7 +8166,8 @@
     "manual_pdf_page": 90,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1111"
   },
   {
     "code": "F18.17",
@@ -8143,7 +8186,8 @@
     "manual_pdf_page": 90,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "12"
   },
   {
     "code": "F18.18",
@@ -8434,7 +8478,8 @@
     "manual_pdf_page": 91,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "22"
   },
   {
     "code": "F19.11",
@@ -8453,7 +8498,8 @@
     "manual_pdf_page": 91,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "1111"
   },
   {
     "code": "F19.12",
@@ -8776,7 +8822,8 @@
     "manual_pdf_page": 92,
     "digits": 3,
     "digit_chars": "0123456789",
-    "display_width": 3
+    "display_width": 3,
+    "digit_limits": "333"
   },
   {
     "code": "F19.32",
@@ -8795,7 +8842,8 @@
     "manual_pdf_page": 92,
     "digits": 4,
     "digit_chars": "0123456789",
-    "display_width": 4
+    "display_width": 4,
+    "digit_limits": "**02"
   },
   {
     "code": "F19.33",
@@ -8846,7 +8894,8 @@
     "manual_pdf_page": 93,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "11"
   },
   {
     "code": "F19.36",
@@ -9476,7 +9525,8 @@
     "manual_pdf_page": 95,
     "digits": 2,
     "digit_chars": "0123456789",
-    "display_width": 2
+    "display_width": 2,
+    "digit_limits": "11"
   },
   {
     "code": "F22.00",

@@ -98,6 +98,10 @@ setting and detection rule comes from `profiles/`.
    `group`, `default`, `scale`, `encoding`, `read_only`. Encodings `bcd` and
    `hex` also need `digits` and `digit_chars`; `function_code` needs
    `maximum_group`. A default that is not a number goes to `default_note`.
+   Keypad fields where each digit selects a setting carry `digit_limits`, the
+   highest value per digit in the manual's own `0000~2112` notation, with `*`
+   for a digit the manual leaves unconstrained. `tools/build_digit_limits.py`
+   derives them from the printed option lists.
 3. Optional: a Russian catalogue in `translations/ru.json` as
    `{"language": "ru", "parameters": {"F00.00": {"description": "...", "range": "..."}}}`.
 4. Run the tests. `tests/test_catalog.py` checks the new model automatically:
@@ -162,6 +166,12 @@ read/write operations. Both the COM port and Modbus device ID are selectable.
   number.
 - Device-verified V5 PID gain formatting overrides the printed manual:
   `F11.07: 50 → 000.50` and `F11.08: 25 → 00.25`.
+- Keypad fields are checked digit by digit, not just against their alphabet:
+  `F14.14` rejects `2222` because the manual documents `0000~2112`, and
+  `F10.01` rejects `FFF` against `000H~E22H`. `F06.21` holds five 0/1 settings
+  as a decimal register, so it accepts `10101` but not `22222`.
+- Every edited value must also fit one 16-bit holding register; a profile whose
+  documented maximum for a writable row exceeds `65535` fails to load.
 - `Fd` fault-history parameters and `F2.52` accumulated run time are read-only
   on EDS800. Group `F26` is read-only on EN600.
 - Saved JSON files include the inverter profile and Modbus ID. Loading a file
@@ -194,12 +204,21 @@ python -m pip install -r requirements-dev.txt
 python tools\extract_en600_parameters.py EN500-EN600-Series-Manual-V5.0-A13.pdf profiles\en600_v5\parameters.json
 ```
 
+Per-digit limits for keypad fields are derived from the same tables:
+
+```powershell
+python toolsuild_digit_limits.py            # report only
+python toolsuild_digit_limits.py --write    # update the profiles
+```
+
 The two Russian EN600 catalogues are generated independently from their
 matching manuals:
 
 ```powershell
-python tools\extract_en600_translations.py esq-500-600-ru.pdf profiles\en600_v5\parameters.json profiles\en600_v5	ranslationsu.json
-python tools\extract_en600_translations.py instruction-EN500-RU.pdf profiles\en600_v2\parameters.json profiles\en600_v2	ranslationsu.json --revision v2
+python tools\extract_en600_translations.py esq-500-600-ru.pdf profiles\en600_v5\parameters.json profiles\en600_v5	ranslations
+u.json
+python tools\extract_en600_translations.py instruction-EN500-RU.pdf profiles\en600_v2\parameters.json profiles\en600_v2	ranslations
+u.json --revision v2
 ```
 
 ## Safety

@@ -43,6 +43,41 @@ class CodecError(ValueError):
         super().__init__(key)
 
 
+UNCONSTRAINED_DIGIT = "*"
+
+
+def digit_limit_problem(text: str, parameter: Mapping[str, Any]) -> Problem | None:
+    """Check a keypad value digit by digit against ``digit_limits``.
+
+    Each digit of such a parameter selects one setting, so the alphabet alone
+    is not enough: ``2222`` is made of valid characters but is not a valid
+    combination for a field documented as ``0000~2112``.  A ``*`` marks a digit
+    the manual does not constrain.
+    """
+    limits = parameter.get("digit_limits")
+    if not limits:
+        return None
+    text = text.zfill(len(limits))  # a keypad hides leading zeros
+    if len(text) != len(limits):
+        return None
+    for digit, limit in zip(text, limits):
+        if limit == UNCONSTRAINED_DIGIT:
+            continue
+        try:
+            if int(digit, 16) > int(limit, 16):
+                return Problem("valid.digit_limits", {"pattern": limits})
+        except ValueError:
+            return Problem("valid.digit_limits", {"pattern": limits})
+    return None
+
+
+def register_problem(raw_value: int) -> Problem | None:
+    """A parameter is one 16-bit holding register - nothing wider fits."""
+    if not 0 <= raw_value <= REGISTER_MASK:
+        return Problem("valid.register_range", {"maximum": REGISTER_MASK})
+    return None
+
+
 class Codec:
     """Base class; subclasses implement one ``encoding`` name."""
 
@@ -98,6 +133,9 @@ class NumericCodec(Codec):
                     "unit": f" {unit}" if unit else "",
                 },
             )
+        # Some fields are plain decimals whose digits each select a setting.
+        if parameter.get("digit_limits") and float(number).is_integer():
+            return digit_limit_problem(str(int(number)), parameter)
         return None
 
 
@@ -130,17 +168,7 @@ class BcdCodec(Codec):
         allowed = parameter["digit_chars"]
         if len(text) != expected or any(char not in allowed for char in text):
             return Problem("valid.bcd_digits", {"digits": expected, "chars": allowed})
-        # Some keypad fields also carry a plain decimal range such as "000~111".
-        value_range = parameter.get("range", "")
-        if value_range.count("~") == 1:
-            minimum, maximum = value_range.split("~", maxsplit=1)
-            if minimum.isdigit() and maximum.isdigit():
-                if not int(minimum) <= int(text) <= int(maximum):
-                    return Problem(
-                        "valid.between",
-                        {"minimum": minimum, "maximum": maximum, "unit": ""},
-                    )
-        return None
+        return digit_limit_problem(text, parameter)
 
 
 class HexCodec(Codec):
@@ -165,7 +193,7 @@ class HexCodec(Codec):
         allowed = parameter["digit_chars"]
         if len(normalized) != expected or any(char not in allowed for char in normalized):
             return Problem("valid.hex_digits", {"digits": expected, "chars": allowed})
-        return None
+        return digit_limit_problem(normalized, parameter)
 
 
 class FunctionCodeCodec(Codec):
@@ -265,4 +293,13 @@ def validate_value(parameter: Mapping[str, Any], text: str) -> Problem | None:
     """Check an edited cell against the parameter definition."""
     if parameter.get("read_only"):
         return Problem("valid.read_only")
-    return codec_for(parameter).validate(str(text).strip(), parameter)
+    text = str(text).strip()
+    codec = codec_for(parameter)
+    problem = codec.validate(text, parameter)
+    if problem is not None:
+        return problem
+    # Whatever the encoding says, the result has to fit one holding register.
+    try:
+        return register_problem(codec.encode(text, parameter))
+    except CodecError as exc:
+        return exc.problem

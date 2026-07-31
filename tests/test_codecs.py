@@ -36,6 +36,31 @@ class NumericCodecTests(unittest.TestCase):
         problem = codecs.validate_value(EN600["F26.00"], "1")
         self.assertEqual(problem.key, "valid.read_only")
 
+    def test_decimal_keypad_digits_are_checked(self):
+        """F06.21 packs five 0/1 settings into one decimal register."""
+        parameter = EN600["F06.21"]
+        self.assertIsNone(codecs.validate_value(parameter, "11111"))
+        self.assertIsNone(codecs.validate_value(parameter, "10101"))
+        self.assertEqual(codecs.encode_value(parameter, "10101"), 10101)
+        self.assertEqual(codecs.validate_value(parameter, "99999").key, "valid.between")
+        self.assertEqual(codecs.validate_value(parameter, "22222").key, "valid.between")
+        self.assertEqual(codecs.validate_value(parameter, "01210").key, "valid.digit_limits")
+
+    def test_values_wider_than_a_register_are_rejected(self):
+        parameter = {
+            "code": "T0.00",
+            "encoding": "numeric",
+            "scale": 1,
+            "range": "0~99999",
+            "minimum": 0,
+            "maximum": 99999,
+            "unit": "",
+        }
+        self.assertEqual(
+            codecs.validate_value(parameter, "99999").key, "valid.register_range"
+        )
+        self.assertIsNone(codecs.validate_value(parameter, "65535"))
+
 
 class BcdCodecTests(unittest.TestCase):
     def test_round_trip(self):
@@ -51,6 +76,29 @@ class BcdCodecTests(unittest.TestCase):
         self.assertEqual(codecs.format_value(0x2000, EN600["F14.14"]), "2000")
         self.assertEqual(codecs.format_value(0x0000, EN600["F16.02"]), "00")
         self.assertEqual(codecs.encode_value(EN600["F13.14"], "011"), 0x0011)
+
+    def test_impossible_digit_combinations_are_rejected(self):
+        """A valid alphabet is not enough: each digit selects one setting."""
+        for code, accepted, rejected in (
+            ("F14.14", "2000", "2222"),  # documented as 0000~2112
+            ("F00.14", "500", "555"),
+            ("F13.14", "011", "911"),
+        ):
+            with self.subTest(code=code):
+                parameter = EN600[code]
+                self.assertIsNone(codecs.validate_value(parameter, accepted))
+                problem = codecs.validate_value(parameter, rejected)
+                self.assertEqual(problem.key, "valid.digit_limits")
+                self.assertEqual(problem.params["pattern"], parameter["digit_limits"])
+
+    def test_unconstrained_digits_stay_free(self):
+        """A digit the manual does not describe must not be guessed at."""
+        parameter = EN600["F00.21"]
+        self.assertEqual(parameter["digit_limits"][:2], "**")
+        self.assertIsNone(codecs.validate_value(parameter, "9911"))
+        self.assertEqual(
+            codecs.validate_value(parameter, "0099").key, "valid.digit_limits"
+        )
 
     def test_digit_alphabet_is_enforced(self):
         parameter = EDS800["F0.03"]  # run direction, digits from "01"
