@@ -49,6 +49,10 @@ class Palette:
     readonly_fg: str
     modified_bg: str
     modified_fg: str
+    # Marks a setting that no longer matches the manual's factory value; kept
+    # away from the amber of an unwritten edit and the red of a failed read.
+    nondefault_bg: str
+    nondefault_fg: str
     error_bg: str
     error_fg: str
 
@@ -78,6 +82,8 @@ LIGHT = Palette(
     readonly_fg="#7A8798",
     modified_bg="#FDF0D5",
     modified_fg="#8A5200",
+    nondefault_bg="#EAE2FB",
+    nondefault_fg="#5433B5",
     error_bg="#FBE3E3",
     error_fg="#A81E1E",
 )
@@ -107,6 +113,8 @@ DARK = Palette(
     readonly_fg="#7D8B9E",
     modified_bg="#3A2E12",
     modified_fg="#F3C466",
+    nondefault_bg="#2A2145",
+    nondefault_fg="#BFAAF7",
     error_bg="#3B1B1E",
     error_fg="#F79A9A",
 )

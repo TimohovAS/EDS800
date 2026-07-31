@@ -89,6 +89,25 @@ class EditorWindowTests(unittest.TestCase):
         self.assertEqual(self.app.session.edited, {"F0.01": "45.00"})
         self.assertIn("1 edited", self.app.counts_text.get())
 
+    def test_factory_cell_is_highlighted_only_where_the_value_moved(self):
+        self.app.session.apply_read({"F0.01": 4500, "F0.02": 0})
+        self.app.update_table()
+        rows = {p["code"]: i for i, p in enumerate(self.app.rows)}
+        highlighted = self.app.sheet.get_highlighted_cells()
+
+        changed = highlighted[(rows["F0.01"], self.app.DEFAULT_COLUMN)]
+        self.assertEqual(changed.bg, self.app.palette.nondefault_bg)
+        # Still at its factory value, and never read at all.
+        self.assertNotIn((rows["F0.02"], self.app.DEFAULT_COLUMN), highlighted)
+        self.assertNotIn((rows["F0.14"], self.app.DEFAULT_COLUMN), highlighted)
+
+        # Typing the factory value back clears the mark without a write.
+        self.app.sheet.set_cell_data(rows["F0.01"], self.app.VALUE_COLUMN, "50.00")
+        self.app._on_sheet_modified()
+        self.assertNotIn(
+            (rows["F0.01"], self.app.DEFAULT_COLUMN), self.app.sheet.get_highlighted_cells()
+        )
+
     def test_language_switch_relabels_everything(self):
         self.app._activate_profile(CATALOG["en600_v5"])
         english_button = self.app.text_buttons["action.read_group"].cget("text")

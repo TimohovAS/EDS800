@@ -118,6 +118,7 @@ class TranslatorTests(unittest.TestCase):
             "problem": "must be a number",
             "minimum": "0",
             "maximum": "10",
+            "limit": "50.00",
             "unit": " Hz",
             "digits": 3,
             "chars": "0123456789",

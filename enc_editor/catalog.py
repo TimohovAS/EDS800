@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator, Mapping
 
-from . import codecs
+from . import codecs, dependencies
 
 PROFILES_DIRECTORY = Path(__file__).resolve().parent.parent / "profiles"
 MANIFEST_NAME = "profile.json"
@@ -199,6 +199,7 @@ def _validate_parameters(
 ) -> None:
     codes: set[str] = set()
     addresses: set[int] = set()
+    references: list[tuple[str, str, str]] = []
     for parameter in parameters:
         code = parameter.get("code", "?")
         missing = REQUIRED_PARAMETER_FIELDS - parameter.keys()
@@ -255,6 +256,18 @@ def _validate_parameters(
                     f"a 16-bit register"
                 )
 
+        # A bound taken from another parameter has to name a code this profile
+        # actually has, or the write ordering would silently do nothing.
+        for field_name in dependencies.BOUND_FIELDS:
+            reference = parameter.get(field_name)
+            if reference is None:
+                continue
+            if not isinstance(reference, str):
+                raise CatalogError(f"{key}: {code} {field_name} must be a parameter code")
+            if reference == code:
+                raise CatalogError(f"{key}: {code} {field_name} points at itself")
+            references.append((code, field_name, reference))
+
         digit_limits = parameter.get("digit_limits")
         if digit_limits is not None:
             if not isinstance(digit_limits, str) or not digit_limits:
@@ -264,6 +277,13 @@ def _validate_parameters(
                     f"{key}: {code} digit_limits {digit_limits!r} does not match "
                     f"{parameter['digits']} digits"
                 )
+
+    # Checked once every code is known, so a bound may point forwards.
+    for code, field_name, reference in references:
+        if reference not in codes:
+            raise CatalogError(
+                f"{key}: {code} {field_name} points at unknown code {reference}"
+            )
 
 
 def _load_translations(

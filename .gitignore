@@ -2,3 +2,7 @@ __pycache__/
 *.py[cod]
 .venv/
 *.log
+packaging/build/
+packaging/dist/
+packaging/output/
+packaging/version_info.txt

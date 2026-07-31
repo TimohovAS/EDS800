@@ -503,7 +503,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 61
+    "manual_pdf_page": 61,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F01.02",
@@ -555,7 +556,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 62
+    "manual_pdf_page": 62,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F01.05",
@@ -671,7 +673,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 63
+    "manual_pdf_page": 63,
+    "minimum_from": "F01.12"
   },
   {
     "code": "F01.12",
@@ -687,7 +690,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 63
+    "manual_pdf_page": 63,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F01.13",
@@ -719,7 +723,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 63
+    "manual_pdf_page": 63,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F01.15",
@@ -901,7 +906,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 63
+    "manual_pdf_page": 63,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F01.26",
@@ -917,7 +923,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 64
+    "manual_pdf_page": 64,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F01.27",
@@ -1093,7 +1100,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 64
+    "manual_pdf_page": 64,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F02.08",
@@ -1173,7 +1181,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 64
+    "manual_pdf_page": 64,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F02.13",
@@ -1462,7 +1471,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F03.06"
   },
   {
     "code": "F03.05",
@@ -1478,7 +1488,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F03.07"
   },
   {
     "code": "F03.06",
@@ -1494,7 +1505,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "minimum_from": "F03.04",
+    "maximum_from": "F03.08"
   },
   {
     "code": "F03.07",
@@ -1510,7 +1523,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "minimum_from": "F03.05",
+    "maximum_from": "F03.09"
   },
   {
     "code": "F03.08",
@@ -1526,7 +1541,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "minimum_from": "F03.06",
+    "maximum_from": "F03.10"
   },
   {
     "code": "F03.09",
@@ -1542,7 +1559,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "minimum_from": "F03.07",
+    "maximum_from": "F03.11"
   },
   {
     "code": "F03.10",
@@ -1558,7 +1577,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "minimum_from": "F03.08",
+    "maximum_from": "F01.11"
   },
   {
     "code": "F03.11",
@@ -1574,7 +1595,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "minimum_from": "F03.09"
   },
   {
     "code": "F03.12",
@@ -1606,7 +1628,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.01",
@@ -1622,7 +1645,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.02",
@@ -1638,7 +1662,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.03",
@@ -1654,7 +1679,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.04",
@@ -1670,7 +1696,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.05",
@@ -1686,7 +1713,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 65
+    "manual_pdf_page": 65,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.06",
@@ -1819,7 +1847,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 66
+    "manual_pdf_page": 66,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.15",
@@ -1835,7 +1864,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 66
+    "manual_pdf_page": 66,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F04.16",
@@ -2790,7 +2820,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "maximum_from": "F06.03"
   },
   {
     "code": "F06.02",
@@ -2822,7 +2853,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "minimum_from": "F06.01",
+    "maximum_from": "F06.05"
   },
   {
     "code": "F06.04",
@@ -2854,7 +2887,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "minimum_from": "F06.03"
   },
   {
     "code": "F06.06",
@@ -2886,7 +2920,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "maximum_from": "F06.09"
   },
   {
     "code": "F06.08",
@@ -2918,7 +2953,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "minimum_from": "F06.07",
+    "maximum_from": "F06.11"
   },
   {
     "code": "F06.10",
@@ -2950,7 +2987,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "minimum_from": "F06.09"
   },
   {
     "code": "F06.12",
@@ -2982,7 +3020,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "maximum_from": "F06.15"
   },
   {
     "code": "F06.14",
@@ -3014,7 +3053,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "minimum_from": "F06.13",
+    "maximum_from": "F06.17"
   },
   {
     "code": "F06.16",
@@ -3046,7 +3087,9 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "minimum_from": "F06.15",
+    "maximum_from": "F06.19"
   },
   {
     "code": "F06.18",
@@ -3078,7 +3121,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 70
+    "manual_pdf_page": 70,
+    "minimum_from": "F06.15"
   },
   {
     "code": "F06.20",
@@ -3949,7 +3993,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.07",
@@ -3981,7 +4026,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.09",
@@ -4013,7 +4059,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.11",
@@ -4029,7 +4076,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.12",
@@ -4173,7 +4221,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.21",
@@ -4189,7 +4238,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.22",
@@ -4205,7 +4255,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.23",
@@ -4221,7 +4272,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 76
+    "manual_pdf_page": 76,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F09.24",
@@ -5181,7 +5233,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.32",
@@ -5197,7 +5250,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.33",
@@ -5213,7 +5267,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.34",
@@ -5229,7 +5284,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.35",
@@ -5245,7 +5301,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.36",
@@ -5261,7 +5318,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.37",
@@ -5277,7 +5335,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.38",
@@ -5293,7 +5352,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.39",
@@ -5309,7 +5369,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.40",
@@ -5325,7 +5386,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.41",
@@ -5341,7 +5403,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.42",
@@ -5357,7 +5420,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.43",
@@ -5373,7 +5437,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.44",
@@ -5389,7 +5454,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F10.45",
@@ -5405,7 +5471,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 79
+    "manual_pdf_page": 79,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F11.00",
@@ -5661,7 +5728,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 80
+    "manual_pdf_page": 80,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F11.16",
@@ -5677,7 +5745,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 80
+    "manual_pdf_page": 80,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F11.17",
@@ -5725,7 +5794,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 80
+    "manual_pdf_page": 80,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F11.20",
@@ -5773,7 +5843,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 81
+    "manual_pdf_page": 81,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F11.23",
@@ -5933,7 +6004,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 81
+    "manual_pdf_page": 81,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F12.03",
@@ -6632,7 +6704,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 84
+    "manual_pdf_page": 84,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F14.19",
@@ -6648,7 +6721,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 84
+    "manual_pdf_page": 84,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F14.20",
@@ -6824,7 +6898,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 84
+    "manual_pdf_page": 84,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F15.01",
@@ -7354,7 +7429,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": true,
-    "manual_pdf_page": 87
+    "manual_pdf_page": 87,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F18.16",
@@ -7966,7 +8042,8 @@
     "encoding": "numeric",
     "read_only": false,
     "change_while_running": false,
-    "manual_pdf_page": 90
+    "manual_pdf_page": 90,
+    "maximum_from": "F01.11"
   },
   {
     "code": "F19.38",

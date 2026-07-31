@@ -47,6 +47,7 @@ class InverterParameterEditor:
     VERSION = VERSION
     COLUMN_WIDTHS = (80, 350, 100, 70, 125, 340)
     VALUE_COLUMN = 2
+    DEFAULT_COLUMN = 4
 
     def __init__(self, root, catalog: Catalog | None = None):
         self.root = root
@@ -670,7 +671,7 @@ class InverterParameterEditor:
                 cells=[(row, self.VALUE_COLUMN) for row in self._readonly_rows], readonly=False
             )
 
-        readonly, edited, errors = [], [], []
+        readonly, edited, errors, nondefault = [], [], [], []
         for index, param in enumerate(self.rows):
             code = param["code"]
             if param.get("read_only"):
@@ -679,6 +680,10 @@ class InverterParameterEditor:
                 errors.append(index)
             elif code in self.session.edited:
                 edited.append(index)
+            # Marking the factory cell, not the value cell, keeps the two
+            # questions apart: what is in the drive, and what left the works.
+            if self.session.matches_default(param) is False:
+                nondefault.append(index)
 
         palette = self.palette
         if readonly:
@@ -687,13 +692,14 @@ class InverterParameterEditor:
             )
             sheet.readonly_cells(cells=[(row, self.VALUE_COLUMN) for row in readonly], readonly=True)
         self._readonly_rows = readonly
-        for indexes, background, foreground in (
-            (edited, palette.modified_bg, palette.modified_fg),
-            (errors, palette.error_bg, palette.error_fg),
+        for indexes, column, background, foreground in (
+            (edited, self.VALUE_COLUMN, palette.modified_bg, palette.modified_fg),
+            (errors, self.VALUE_COLUMN, palette.error_bg, palette.error_fg),
+            (nondefault, self.DEFAULT_COLUMN, palette.nondefault_bg, palette.nondefault_fg),
         ):
             if indexes:
                 sheet.highlight_cells(
-                    cells=[(row, self.VALUE_COLUMN) for row in indexes],
+                    cells=[(row, column) for row in indexes],
                     bg=background,
                     fg=foreground,
                     redraw=False,
@@ -976,7 +982,13 @@ class InverterParameterEditor:
         )
 
     def _problem_text(self, problem: Problem) -> str:
-        return self.t(problem.key, **problem.params)
+        # Codecs carry the unit as the manual prints it; the message shows it
+        # in the interface language, like every other unit in the window.
+        params = dict(problem.params)
+        unit = str(params.get("unit", "")).strip()
+        if unit:
+            params["unit"] = f" {self.t.unit(unit)}"
+        return self.t(problem.key, **params)
 
     def _write_parameters(self, parameters, scope, edited_only=False):
         t = self.t

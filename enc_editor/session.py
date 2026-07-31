@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
-from . import codecs
+from . import codecs, dependencies
 from .catalog import Catalog, InverterProfile
 from .codecs import ERROR_TEXTS, READ_ERROR, CodecError, Problem
 
@@ -108,6 +108,29 @@ class Session:
     def display(self, parameter: Mapping[str, Any]) -> str:
         return self.edited.get(parameter["code"], self.baseline(parameter))
 
+    def matches_default(self, parameter: Mapping[str, Any]) -> bool | None:
+        """Whether the value on screen is still the manual's factory setting.
+
+        ``None`` means the question does not apply: a read-only monitor value,
+        a parameter whose factory setting depends on the motor, a row that was
+        never read, or a cell holding text that does not encode yet.
+
+        Both sides are encoded to a register before they are compared, so the
+        answer follows the drive rather than the spelling: ``0.0500`` and
+        ``0.05`` are the same setting, and a keypad field printed as ``0500``
+        matches a default written ``500``.
+        """
+        if parameter.get("read_only"):
+            return None
+        default = str(parameter.get("default") or "").strip()
+        shown = str(self.display(parameter)).strip()
+        if not default or not shown or shown in ERROR_TEXTS:
+            return None
+        try:
+            return codecs.encode_value(parameter, shown) == codecs.encode_value(parameter, default)
+        except CodecError:
+            return None
+
     def track_edits(self, parameters: Sequence[Mapping[str, Any]], values: Sequence[str]) -> None:
         """Compare the table against the baseline and remember the differences."""
         for parameter, value in zip(parameters, values):
@@ -141,7 +164,14 @@ class Session:
     def collect_write_targets(
         self, parameters: Iterable[Mapping[str, Any]], edited_only: bool = False
     ) -> tuple[list[WriteTarget], list[tuple[str, Problem]]]:
-        """Pair writable parameters with the value currently shown."""
+        """Pair writable parameters with the value currently shown.
+
+        The result is in the order the drive will accept: a parameter that
+        bounds another (an upper frequency limit, a V/F corner point) is moved
+        ahead of or behind it as the direction of the change requires.  A value
+        no ordering can rescue is reported as a problem instead of being
+        written and refused - see :mod:`enc_editor.dependencies`.
+        """
         targets: list[WriteTarget] = []
         problems: list[tuple[str, Problem]] = []
         for parameter in parameters:
@@ -171,7 +201,14 @@ class Session:
                 targets.append(WriteTarget(parameter, codecs.encode_value(parameter, displayed), displayed))
             except CodecError as exc:
                 problems.append((code, exc.problem))
-        return targets, problems
+
+        by_code = self.profile.by_code()
+        blocked = dependencies.conflicts(targets, by_code, self.loaded)
+        if blocked:
+            refused = {code for code, _problem in blocked}
+            targets = [target for target in targets if target.code not in refused]
+            problems.extend(blocked)
+        return dependencies.order_writes(targets, by_code, self.loaded), problems
 
     def validate(self, parameter: Mapping[str, Any], text: str) -> Problem | None:
         return codecs.validate_value(parameter, text)

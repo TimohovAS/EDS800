@@ -70,6 +70,43 @@ class SessionTableTests(unittest.TestCase):
         self.session.track_edits(parameters, ["50.00", "4.0"])
         self.assertEqual(self.session.edited, {})
 
+    def test_default_comparison_ignores_spelling(self):
+        parameter = self.by_code["F0.01"]
+        self.session.apply_read({"F0.01": 5000})
+        self.assertIs(self.session.matches_default(parameter), True)
+        self.session.edited["F0.01"] = "50.0"
+        self.assertIs(self.session.matches_default(parameter), True)
+        self.session.edited["F0.01"] = "45.00"
+        self.assertIs(self.session.matches_default(parameter), False)
+
+    def test_default_comparison_covers_keypad_fields(self):
+        parameter = self.by_code["F0.03"]
+        self.session.apply_read({"F0.03": 0x000})
+        self.assertIs(self.session.matches_default(parameter), True)
+        self.session.apply_read({"F0.03": 0x001})
+        self.assertIs(self.session.matches_default(parameter), False)
+
+    def test_default_comparison_follows_the_scale_not_the_decimals(self):
+        session = Session(CATALOG["en600_v5"])
+        parameter = session.profile.by_code()["F11.07"]  # manual prints 0.0500
+        session.apply_read({"F11.07": 5})
+        # Neither the decimals nor the keypad padding line up with the manual.
+        self.assertEqual(session.display(parameter), "000.05")
+        self.assertIs(session.matches_default(parameter), True)
+
+    def test_default_comparison_declines_where_it_says_nothing(self):
+        # Nothing read yet.
+        self.assertIsNone(self.session.matches_default(self.by_code["F0.01"]))
+        # Read-only monitor value, and a default that depends on the drive.
+        self.session.apply_read({"Fd.00": 3, "F2.05": 120, "F0.01": 5000})
+        self.assertIsNone(self.session.matches_default(self.by_code["Fd.00"]))
+        self.assertIsNone(self.session.matches_default(self.by_code["F2.05"]))
+        # A failed read, and a cell still being typed into.
+        self.session.apply_read({"F0.01": "Error"})
+        self.assertIsNone(self.session.matches_default(self.by_code["F0.01"]))
+        self.session.edited["F0.01"] = "4,"
+        self.assertIsNone(self.session.matches_default(self.by_code["F0.01"]))
+
     def test_switching_profiles_keeps_only_known_codes(self):
         session = Session(CATALOG["en600_v5"])
         session.apply_read({"F02.26": 100, "F01.01": 5000})
