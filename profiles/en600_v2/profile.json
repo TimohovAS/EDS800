@@ -1,0 +1,32 @@
+{
+  "key": "en600_v2",
+  "model": "EN600-2S0007 V2.0-A2",
+  "series": "EN600",
+  "order": 40,
+  "label": {
+    "en": "ENC EN600-2S0007 — V2.0-A2 (legacy)",
+    "ru": "ENC EN600-2S0007 — V2.0-A2 (старая)",
+    "sr": "ENC EN600-2S0007 — V2.0-A2 (starija)"
+  },
+  "link": {
+    "baudrate": 9600,
+    "parity": "N",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 1.0,
+    "device_id": 1,
+    "max_read_registers": 10
+  },
+  "groups": {
+    "F00": 0, "F01": 1, "F02": 2, "F03": 3, "F04": 4, "F05": 5, "F06": 6,
+    "F07": 7, "F08": 8, "F09": 9, "F10": 10, "F11": 11, "F12": 12, "F13": 13,
+    "F14": 14, "F15": 15, "F16": 16, "F18": 18, "F19": 19, "F20": 20,
+    "F25": 25, "F26": 26
+  },
+  "parameters": "parameters.json",
+  "translations": {
+    "ru": "translations/ru.json"
+  },
+  "manual_url": "https://hungvuongelectric.com/uploads/File/ENC/EN500_EN600_Manual_V2.0-A2.pdf",
+  "source": "EN500/EN600 User Manual V2.0-A2, pages 57-94"
+}

@@ -1,0 +1,36 @@
+{
+  "key": "eds800",
+  "model": "EDS800",
+  "series": "EDS800",
+  "order": 10,
+  "label": {
+    "en": "ENC EDS800",
+    "ru": "ENC EDS800",
+    "sr": "ENC EDS800"
+  },
+  "link": {
+    "baudrate": 9600,
+    "parity": "N",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 1.0,
+    "device_id": 1,
+    "max_read_registers": 50
+  },
+  "groups": {
+    "F0": 0,
+    "F1": 1,
+    "F2": 2,
+    "F3": 3,
+    "F4": 4,
+    "F5": 5,
+    "F6": 6,
+    "F7": 7,
+    "F8": 8,
+    "F9": 9,
+    "Fd": 13
+  },
+  "parameters": "parameters.json",
+  "manual_url": "https://thanglongautomation.com/upload/files/ENC-EDS800%20Manual.pdf",
+  "source": "EDS800 Series Service Manual, section 5.2"
+}

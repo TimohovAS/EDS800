@@ -7293,7 +7293,7 @@
     "description": "Keyboard UP/DOWN selection under monitor mode",
     "range": "0:keyboard frequency provide value adjusting 1:PID digital provide value adjusting 2～6：Reserved",
     "minimum": 0.0,
-    "maximum": 1.0,
+    "maximum": 6.0,
     "unit": "",
     "address": 4622,
     "group": "F18",

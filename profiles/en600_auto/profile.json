@@ -1,0 +1,34 @@
+{
+  "key": "en600_auto",
+  "model": "EN600-2S0007 (auto)",
+  "series": "EN600",
+  "order": 20,
+  "label": {
+    "en": "ENC EN600-2S0007 — Auto revision",
+    "ru": "ENC EN600-2S0007 — автоопределение",
+    "sr": "ENC EN600-2S0007 — auto revizija"
+  },
+  "link": {
+    "baudrate": 9600,
+    "parity": "N",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 1.0,
+    "device_id": 1,
+    "max_read_registers": 10
+  },
+  "parameters_from": "en600_v5",
+  "manual_url": "https://konel.ba/wp-content/uploads/2024/05/EN500-EN600-Series-Manual-V5.0-A13.pdf",
+  "detect": {
+    "link_check": "F00.00",
+    "probe": "F02.26",
+    "rules": [
+      {
+        "in_range": [95, 115],
+        "profile": "en600_v5",
+        "reason": "F02.26 exists only on V5 firmware and is documented as 95-115%"
+      }
+    ],
+    "fallback": "en600_v2"
+  }
+}

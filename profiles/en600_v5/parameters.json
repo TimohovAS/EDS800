@@ -8077,10 +8077,10 @@
   },
   {
     "code": "F18.14",
-    "description": "Keyboard UP/DOWN",
-    "range": "0:Keyboard frequency provide value adjusting",
+    "description": "Keyboard UP/DOWN selection under monitor mode",
+    "range": "0: Keyboard frequency provision value adjusting 1: PID digital reference value adjusting 2~6: Reserved",
     "minimum": 0.0,
-    "maximum": 0.0,
+    "maximum": 6.0,
     "unit": "",
     "address": 4622,
     "group": "F18",

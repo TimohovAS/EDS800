@@ -26,7 +26,6 @@ class Palette:
     """Colours used by both the ttk widgets and the parameter sheet."""
 
     name: str
-    label: str
     sheet_theme: str
     bg: str
     surface: str
@@ -56,7 +55,6 @@ class Palette:
 
 LIGHT = Palette(
     name="light",
-    label="Dark theme",
     sheet_theme="light blue",
     bg="#EDF1F7",
     surface="#FFFFFF",
@@ -86,7 +84,6 @@ LIGHT = Palette(
 
 DARK = Palette(
     name="dark",
-    label="Light theme",
     sheet_theme="dark",
     bg="#12161D",
     surface="#1A2029",

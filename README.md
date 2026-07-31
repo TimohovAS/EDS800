@@ -1,6 +1,6 @@
 # ENC Inverter Parameter Editor
 
-**Version 2.2.3**
+**Version 3.0.0**
 
 A Tkinter desktop application for reading, editing, backing up, and restoring
 ENC inverter parameters over Modbus RTU.
@@ -18,12 +18,25 @@ ENC inverter parameters over Modbus RTU.
   page and the full option list of the selected parameter.
 - Status bar with the link indicator, live progress and a **Cancel** button;
   all Modbus traffic runs on a worker thread, so the window never freezes.
-- Light and dark themes; the theme, model, port, Modbus ID and window size are
-  remembered in `~/.enc_inverter_editor.json`.
+- English, Russian and Serbian (latin) interface. The language follows the
+  system locale on first start and can be switched from the EN / RU / SR
+  buttons in the header without restarting.
+- Light and dark themes; the language, theme, model, port, Modbus ID and
+  window size are remembered in `~/.enc_inverter_editor.json`.
 
 Shortcuts: `F5` read group, `Ctrl+R` read all, `Ctrl+S` save to file,
 `Ctrl+O` load from file, `Ctrl+F` search, `Ctrl+T` switch theme, `Esc` clear
 the search or cancel a running operation.
+
+Interface strings live in `enc_editor/i18n.py`; a new language only needs one
+more entry in `TRANSLATIONS` (plural forms are ordered one / few / many) and,
+optionally, a unit table. EN600 parameter names, ranges, and option lists
+switch between English and Russian together with the interface. Each EN600 revision has its own Russian catalogue, so
+automatic revision detection also selects the matching translated ranges and
+options. The V5 catalogue comes from the current ESQ-500/600 08.04.500
+function table, which contains the same 651 parameter codes and layouts.
+Legacy entries that differ between the Russian and English V2 manuals are
+reconciled explicitly and show a source note in the parameter details panel.
 
 ## Supported inverter profiles
 
@@ -43,9 +56,67 @@ Auto detection reads `F02.26` without writing anything. A value in its
 documented `95–115%` range selects V5.0-A13; otherwise the legacy V2.0-A2 map
 is used. Saved JSON files record the detected concrete revision.
 
+## Project layout
+
+```
+enc_editor/catalog.py     profiles loaded and validated from profiles/
+           codecs.py      register bits <-> displayed text, one class per encoding
+           transport.py   Modbus RTU: batched reads, writes, cancellation
+           detection.py   automatic revision detection driven by a manifest
+           session.py     what was read, what was edited, what may be written
+           i18n.py        interface translations and unit tables
+           ui/app.py      the Tk window (the only module that knows widgets)
+profiles/<key>/profile.json  manifest: identity, link settings, group table
+               parameters.json
+               translations/<lang>.json
+inverter_parameter_editor.py  entry point
+```
+
+No module contains model-specific knowledge: every parameter map, serial
+setting and detection rule comes from `profiles/`.
+
+## Adding an inverter model
+
+1. Create `profiles/<key>/profile.json`:
+
+```json
+{
+  "key": "my_model",
+  "model": "MY-MODEL-1", "series": "MY", "order": 50,
+  "label": { "en": "My inverter", "ru": "Мой инвертор" },
+  "link": { "baudrate": 9600, "parity": "N", "stopbits": 1, "bytesize": 8,
+            "timeout": 1.0, "device_id": 1, "max_read_registers": 10 },
+  "groups": { "F00": 0, "F01": 1 },
+  "parameters": "parameters.json",
+  "translations": { "ru": "translations/ru.json" },
+  "manual_url": "https://example.com/manual.pdf"
+}
+```
+
+2. Put the function table in `profiles/<key>/parameters.json`. Every row needs
+   `code`, `description`, `range`, `minimum`, `maximum`, `unit`, `address`,
+   `group`, `default`, `scale`, `encoding`, `read_only`. Encodings `bcd` and
+   `hex` also need `digits` and `digit_chars`; `function_code` needs
+   `maximum_group`. A default that is not a number goes to `default_note`.
+3. Optional: a Russian catalogue in `translations/ru.json` as
+   `{"language": "ru", "parameters": {"F00.00": {"description": "...", "range": "..."}}}`.
+4. Run the tests. `tests/test_catalog.py` checks the new model automatically:
+   unique codes and addresses, addresses matching the group table, known
+   encodings with their required fields, defaults that pass validation, and
+   translations covering every code.
+
+A model whose revision must be probed adds a `detect` block instead of its own
+table - see `profiles/en600_auto/profile.json`. A new encoding is a class in
+`enc_editor/codecs.py` plus one `register()` call.
+
+Settings files are written as `format_version` 3 and are only read back at that
+version; a file whose `profile` key no longer exists is rejected with a clear
+message instead of being guessed at.
+
 ## Requirements
 
 - Windows with Python 3.10 or newer (including Tcl/Tk)
+- pymodbus 3.10 or newer, which is where the Modbus calls take `device_id`
 - A supported inverter connected through a USB-to-RS485 adapter
 - Default connection settings: 9600 baud, 8 data bits, no parity, 1 stop bit
 - Modbus device address 1
@@ -69,7 +140,7 @@ read/write operations. Both the COM port and Modbus device ID are selectable.
 ## Test
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
 ```
 
 ## Parameter handling
@@ -114,13 +185,21 @@ but they are strictly read-only (for example, `F07.17 = 00000`).
 
 ## Regenerating the EN600 parameter data
 
-The checked-in `profiles/en600_v5_parameters.json` is generated from pages
-57-98 of the V5.0-A13 manual. The legacy V2 map remains in the separate
-`profiles/en600_parameters.json` file:
+The checked-in `profiles/en600_v5/parameters.json` is generated from pages
+57-98 of the V5.0-A13 manual. The legacy V2 map lives in
+`profiles/en600_v2/parameters.json`:
 
 ```powershell
 python -m pip install -r requirements-dev.txt
-python tools\extract_en600_parameters.py EN500-EN600-Series-Manual-V5.0-A13.pdf profiles\en600_v5_parameters.json
+python tools\extract_en600_parameters.py EN500-EN600-Series-Manual-V5.0-A13.pdf profiles\en600_v5\parameters.json
+```
+
+The two Russian EN600 catalogues are generated independently from their
+matching manuals:
+
+```powershell
+python tools\extract_en600_translations.py esq-500-600-ru.pdf profiles\en600_v5\parameters.json profiles\en600_v5	ranslationsu.json
+python tools\extract_en600_translations.py instruction-EN500-RU.pdf profiles\en600_v2\parameters.json profiles\en600_v2	ranslationsu.json --revision v2
 ```
 
 ## Safety
@@ -140,3 +219,5 @@ Parameter sources:
 
 - [ENC EDS800 Series Service Manual](https://thanglongautomation.com/upload/files/ENC-EDS800%20Manual.pdf)
 - [ENC EN500/EN600 V5.0-A13 User Manual](https://konel.ba/wp-content/uploads/2024/05/EN500-EN600-Series-Manual-V5.0-A13.pdf)
+- [ESQ-500/600 08.04.500 Russian User Manual](https://www.elcomspb.kz/upload/iblock/b75/kur8dsapkq4n6pdy81dewj8rnt5nut39.pdf)
+- [ENC EN500/EN600 legacy Russian User Manual](https://sparks.su/upload/doc/p-ch-en-500-en-600/instruction-EN500.pdf)
