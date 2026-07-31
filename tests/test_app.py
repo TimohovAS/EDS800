@@ -51,6 +51,17 @@ class EditorWindowTests(unittest.TestCase):
             set(CATALOG.labels(self.app.language)),
         )
 
+    def test_group_tree_shows_localized_manual_titles(self):
+        self.app._activate_profile(CATALOG["en600_v5"])
+        english = self.app.group_tree.item("F20", "text")
+        self.assertIn("F20", english)
+        self.assertIn(CATALOG["en600_v5"].group_label("F20", "en"), english)
+
+        self.app.set_language("ru")
+        russian = self.app.group_tree.item("F20", "text")
+        self.assertIn(CATALOG["en600_v5"].group_label("F20", "ru"), russian)
+        self.assertNotEqual(russian, english)
+
     def test_detection_preserves_modbus_id_and_group(self):
         self.app._activate_profile(CATALOG["en600_auto"])
         self.app.selected_device_id.set(7)

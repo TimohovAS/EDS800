@@ -47,6 +47,13 @@ class CatalogInvariantTests(unittest.TestCase):
                 with self.subTest(profile=profile.key, code=parameter["code"]):
                     self.assertEqual(parameter["address"], expected)
 
+    def test_every_group_has_a_manual_title(self):
+        for profile in CATALOG:
+            for group in profile.groups:
+                with self.subTest(profile=profile.key, group=group):
+                    self.assertNotEqual(profile.group_label(group, "en"), group)
+                    self.assertTrue(profile.group_label(group, "ru"))
+
     def test_every_encoding_is_registered_and_complete(self):
         for profile in CATALOG:
             for parameter in profile.parameters:

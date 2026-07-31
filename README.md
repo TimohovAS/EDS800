@@ -1,6 +1,6 @@
 # ENC Inverter Parameter Editor
 
-**Version 3.0.1**
+**Version 3.0.2**
 
 A Tkinter desktop application for reading, editing, backing up, and restoring
 ENC inverter parameters over Modbus RTU.
@@ -8,8 +8,8 @@ ENC inverter parameters over Modbus RTU.
 ## Interface
 
 - Sidebar with the connection card (model, serial port, Modbus ID, **Test
-  link**) and the group list with parameter counts; **All parameters** shows
-  the complete map.
+  link**) and the localized manual names of parameter groups with their
+  parameter counts; **All parameters** shows the complete map.
 - Instant search over parameter codes and descriptions, plus a row filter
   (`All`, `Writable`, `Read-only`, `Edited`, `Errors`).
 - Colour-coded table: edited cells are amber, failed reads are red, read-only
@@ -87,6 +87,10 @@ setting and detection rule comes from `profiles/`.
   "link": { "baudrate": 9600, "parity": "N", "stopbits": 1, "bytesize": 8,
             "timeout": 1.0, "device_id": 1, "max_read_registers": 10 },
   "groups": { "F00": 0, "F01": 1 },
+  "group_labels": {
+    "en": { "F00": "System parameters", "F01": "Basic run functions" },
+    "ru": { "F00": "Системные параметры", "F01": "Основные функции работы" }
+  },
   "parameters": "parameters.json",
   "translations": { "ru": "translations/ru.json" },
   "manual_url": "https://example.com/manual.pdf"

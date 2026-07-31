@@ -59,7 +59,7 @@ def digit_limit_problem(text: str, parameter: Mapping[str, Any]) -> Problem | No
         return None
     text = text.zfill(len(limits))  # a keypad hides leading zeros
     if len(text) != len(limits):
-        return None
+        return Problem("valid.digit_limits", {"pattern": limits})
     for digit, limit in zip(text, limits):
         if limit == UNCONSTRAINED_DIGIT:
             continue
@@ -134,8 +134,8 @@ class NumericCodec(Codec):
                 },
             )
         # Some fields are plain decimals whose digits each select a setting.
-        if parameter.get("digit_limits") and float(number).is_integer():
-            return digit_limit_problem(str(int(number)), parameter)
+        if parameter.get("digit_limits"):
+            return digit_limit_problem(text, parameter)
         return None
 
 

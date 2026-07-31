@@ -45,6 +45,7 @@ class NumericCodecTests(unittest.TestCase):
         self.assertEqual(codecs.validate_value(parameter, "99999").key, "valid.between")
         self.assertEqual(codecs.validate_value(parameter, "22222").key, "valid.between")
         self.assertEqual(codecs.validate_value(parameter, "01210").key, "valid.digit_limits")
+        self.assertEqual(codecs.validate_value(parameter, "10101.5").key, "valid.digit_limits")
 
     def test_values_wider_than_a_register_are_rejected(self):
         parameter = {

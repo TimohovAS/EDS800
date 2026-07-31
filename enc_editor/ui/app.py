@@ -184,7 +184,7 @@ class InverterParameterEditor:
         self.theme_button.pack(side="left")
 
     def _build_sidebar(self, parent):
-        sidebar = ttk.Frame(parent, style="App.TFrame", width=286)
+        sidebar = ttk.Frame(parent, style="App.TFrame", width=360)
         sidebar.grid(row=0, column=0, sticky="ns", padx=(0, 14))
         sidebar.grid_propagate(False)
         sidebar.grid_rowconfigure(2, weight=1)
@@ -255,7 +255,7 @@ class InverterParameterEditor:
         self.group_tree = ttk.Treeview(
             groups, style="Groups.Treeview", show="tree", columns=("count",), selectmode="browse"
         )
-        self.group_tree.column("#0", width=170, stretch=True)
+        self.group_tree.column("#0", width=244, stretch=True)
         self.group_tree.column("count", width=46, anchor="e", stretch=False)
         self.group_tree.grid(row=1, column=0, sticky="nsew")
         scrollbar = ttk.Scrollbar(groups, orient="vertical", command=self.group_tree.yview)
@@ -576,7 +576,8 @@ class InverterParameterEditor:
         )
         for group in self.profile.groups:
             count = sum(1 for p in self.profile.parameters if p["group"] == group)
-            tree.insert("", "end", iid=group, text=group, values=(count,))
+            title = self.profile.group_label(group, self.language)
+            tree.insert("", "end", iid=group, text=f"{group}  {title}", values=(count,))
         target = self.selected_group.get()
         if not tree.exists(target):
             target = ALL_GROUPS
@@ -595,7 +596,9 @@ class InverterParameterEditor:
 
     def _group_label(self):
         group = self.selected_group.get()
-        return self.t("group.all") if group == ALL_GROUPS else group
+        if group == ALL_GROUPS:
+            return self.t("group.all")
+        return f"{group} - {self.profile.group_label(group, self.language)}"
 
     def open_manual(self):
         if self.profile.manual_url:

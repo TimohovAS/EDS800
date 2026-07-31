@@ -87,6 +87,7 @@ class InverterProfile:
     link: LinkSettings = field(default_factory=LinkSettings)
     manual_url: str = ""
     group_ids: Mapping[str, int] = field(default_factory=dict)
+    group_labels: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     translations: Mapping[str, Mapping[str, Mapping[str, str]]] = field(default_factory=dict)
     detect: Mapping[str, Any] | None = None
     order: int = 100
@@ -99,6 +100,14 @@ class InverterProfile:
     @property
     def groups(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(parameter["group"] for parameter in self.parameters))
+
+    def group_label(self, group: str, language: str) -> str:
+        """Localized manual title for a parameter group, with English fallback."""
+        return (
+            self.group_labels.get(language, {}).get(group)
+            or self.group_labels.get("en", {}).get(group)
+            or group
+        )
 
     def by_code(self) -> dict[str, dict[str, Any]]:
         return {parameter["code"]: parameter for parameter in self.parameters}
@@ -300,12 +309,29 @@ def load_profile(directory: Path, shared: Mapping[str, InverterProfile] | None =
         parameters = source.parameters
         translations = source.translations
         group_ids = source.group_ids
+        group_labels = source.group_labels
     else:
         parameters = _read_json(directory / manifest.get("parameters", "parameters.json"))
         if not isinstance(parameters, list) or not parameters:
             raise CatalogError(f"{key}: the parameter table must be a non-empty list")
         group_ids = manifest.get("groups") or {}
         _validate_parameters(key, parameters, group_ids)
+        group_labels = manifest.get("group_labels") or {}
+        if not isinstance(group_labels, dict):
+            raise CatalogError(f"{key}: group_labels must be a language map")
+        for language, labels_by_group in group_labels.items():
+            if not isinstance(language, str) or not isinstance(labels_by_group, dict):
+                raise CatalogError(f"{key}: invalid group_labels entry for {language!r}")
+            unknown = labels_by_group.keys() - group_ids.keys()
+            if unknown:
+                raise CatalogError(
+                    f"{key}: group_labels contains unknown group {sorted(unknown)[0]!r}"
+                )
+            if any(
+                not isinstance(title, str) or not title.strip()
+                for title in labels_by_group.values()
+            ):
+                raise CatalogError(f"{key}: group labels must be non-empty strings")
         codes = {parameter["code"] for parameter in parameters}
         translations = _load_translations(key, directory, manifest.get("translations", {}), codes)
         parameters = tuple(parameters)
@@ -319,6 +345,7 @@ def load_profile(directory: Path, shared: Mapping[str, InverterProfile] | None =
         link=LinkSettings(**manifest.get("link", {})),
         manual_url=manifest.get("manual_url", ""),
         group_ids=group_ids,
+        group_labels=group_labels,
         translations=translations,
         detect=manifest.get("detect"),
         order=manifest.get("order", 100),

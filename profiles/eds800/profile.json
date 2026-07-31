@@ -30,6 +30,34 @@
     "F9": 9,
     "Fd": 13
   },
+  "group_labels": {
+    "en": {
+      "F0": "Basic run functions",
+      "F1": "Startup, stop and braking",
+      "F2": "Auxiliary run functions",
+      "F3": "Closed-loop run control",
+      "F4": "Simple PLC functions",
+      "F5": "Terminal functions",
+      "F6": "Traverse special functions",
+      "F7": "Frequency reference",
+      "F8": "Motor and vector control",
+      "F9": "Protection functions",
+      "Fd": "Fault records"
+    },
+    "ru": {
+      "F0": "Основные функции работы",
+      "F1": "Пуск, останов и торможение",
+      "F2": "Вспомогательные функции",
+      "F3": "Управление с обратной связью",
+      "F4": "Функции простого ПЛК",
+      "F5": "Функции клемм",
+      "F6": "Функции траверсы",
+      "F7": "Задание частоты",
+      "F8": "Двигатель и векторное управление",
+      "F9": "Функции защиты",
+      "Fd": "Журнал ошибок"
+    }
+  },
   "parameters": "parameters.json",
   "manual_url": "https://thanglongautomation.com/upload/files/ENC-EDS800%20Manual.pdf",
   "source": "EDS800 Series Service Manual, section 5.2"
