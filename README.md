@@ -1,6 +1,6 @@
 # ENC Inverter Parameter Editor
 
-**Version 3.0.0**
+**Version 3.0.1**
 
 A Tkinter desktop application for reading, editing, backing up, and restoring
 ENC inverter parameters over Modbus RTU.
