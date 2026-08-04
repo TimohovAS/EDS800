@@ -14,8 +14,9 @@ import math
 import re
 from pathlib import Path
 
-import pdfplumber
-
+# pdfplumber is imported where the PDF is opened rather than here: the parsing
+# helpers below are pure and their tests must run wherever the test suite runs,
+# including a CI job that installs the runtime requirements only.
 
 CODE_PATTERN = re.compile(r"F(?P<group>\d{2})\.(?P<number>\d{2})")
 NUMBER_PATTERN = re.compile(r"[-+]?\d+(?:\.\d+)?")
@@ -187,6 +188,8 @@ def extract_parameters(
     first_page: int = 57,
     last_page: int = 98,
 ) -> list[dict[str, object]]:
+    import pdfplumber  # only this step needs it; see the note at the top
+
     parameters: list[dict[str, object]] = []
     previous_page = first_page - 1
     same_as_source: dict[str, object] | None = None
