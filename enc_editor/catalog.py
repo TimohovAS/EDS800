@@ -122,6 +122,26 @@ class InverterProfile:
                 return translated
         return parameter.get(field_name, "")
 
+    def range_text(self, parameter: Mapping[str, Any], language: str) -> str:
+        """Localized range with every structured cross-reference made visible.
+
+        Manuals often say only "upper limit frequency" or "same as above".
+        The profile already knows the exact related function codes, so append
+        them in a language-independent mathematical form instead of leaving the
+        operator to guess which parameter controls the limit.
+        """
+        text = self.text(parameter, "range", language)
+        references: list[str] = []
+        if parameter.get("same_as"):
+            references.append(f"= {parameter['same_as']}")
+        if parameter.get("minimum_from"):
+            references.append(f"≥ {parameter['minimum_from']}")
+        if parameter.get("maximum_from"):
+            references.append(f"≤ {parameter['maximum_from']}")
+        if references:
+            text = f"{text}  [{'; '.join(references)}]"
+        return text
+
     def searchable(self, parameter: Mapping[str, Any]) -> str:
         """Everything a search query may match, in every loaded language."""
         parts = [parameter["code"], parameter["description"], parameter["range"]]
@@ -268,6 +288,14 @@ def _validate_parameters(
                 raise CatalogError(f"{key}: {code} {field_name} points at itself")
             references.append((code, field_name, reference))
 
+        same_as = parameter.get("same_as")
+        if same_as is not None:
+            if not isinstance(same_as, str):
+                raise CatalogError(f"{key}: {code} same_as must be a parameter code")
+            if same_as == code:
+                raise CatalogError(f"{key}: {code} same_as points at itself")
+            references.append((code, "same_as", same_as))
+
         digit_limits = parameter.get("digit_limits")
         if digit_limits is not None:
             if not isinstance(digit_limits, str) or not digit_limits:
@@ -284,6 +312,18 @@ def _validate_parameters(
             raise CatalogError(
                 f"{key}: {code} {field_name} points at unknown code {reference}"
             )
+
+    by_code = {parameter["code"]: parameter for parameter in parameters}
+    for code, field_name, reference in references:
+        if field_name != "same_as":
+            continue
+        parameter = by_code[code]
+        source = by_code[reference]
+        for inherited in ("minimum", "maximum", "scale", "encoding"):
+            if parameter[inherited] != source[inherited]:
+                raise CatalogError(
+                    f"{key}: {code} {inherited} does not match same_as {reference}"
+                )
 
 
 def _load_translations(

@@ -25,10 +25,15 @@ RANGE_PATTERN = re.compile(
     r"(?P<maximum>[-+]?\d+(?:\.\d+)?)"
 )
 OPTION_PATTERN = re.compile(r"(?:^|\s)(\d+)\s*[:：]")
+OPTION_RANGE_PATTERN = re.compile(r"(?:^|\s)(\d+)\s*[~～]\s*(\d+)\s*[:：]")
 COMPOSITE_DIGIT_PATTERN = re.compile(
     r"(?i)\b(?:units?|tens|hundreds?|thousands?)\s*digit\b|unitsdigit"
 )
 HEX_VALUE_PATTERN = re.compile(r"\b(?=[0-9A-F]*[A-F])[0-9A-F]+H\b")
+HEX_RANGE_PATTERN = re.compile(
+    r"^\s*(?P<minimum>[0-9A-F]+)H?\s*[~～]\s*(?P<maximum>[0-9A-F]+)H\b",
+    re.IGNORECASE,
+)
 FUNCTION_CODE_RANGE_PATTERN = re.compile(
     r"^F00\.00\s*[~～－]\s*F(?P<maximum_group>25|26)\.xx$",
     re.IGNORECASE,
@@ -92,7 +97,15 @@ def infer_limits(
     value_range: str,
     scale: int,
     display_width: int | None,
+    encoding: str = "numeric",
 ) -> tuple[float, float]:
+    if encoding == "hex":
+        match = HEX_RANGE_PATTERN.match(value_range)
+        if match:
+            return (
+                float(int(match.group("minimum"), 16)),
+                float(int(match.group("maximum"), 16)),
+            )
     match = RANGE_PATTERN.match(value_range)
     if match:
         minimum = float(match.group("minimum"))
@@ -102,9 +115,34 @@ def infer_limits(
     if display_width is not None:
         return 0.0, float((10**display_width) - 1)
     options = [int(value) for value in OPTION_PATTERN.findall(value_range)]
+    options.extend(
+        int(value)
+        for endpoints in OPTION_RANGE_PATTERN.findall(value_range)
+        for value in endpoints
+    )
     if options:
         return float(min(options)), float(max(options))
     return 0.0, 65535 / scale
+
+
+def inherit_same_as(
+    parameter: dict[str, object], source: dict[str, object]
+) -> None:
+    """Resolve the manual's ambiguous ``Same as above`` rows explicitly."""
+    parameter["same_as"] = source["code"]
+    for field_name in ("minimum", "maximum", "scale", "encoding"):
+        parameter[field_name] = source[field_name]
+    for field_name in (
+        "digits",
+        "digit_chars",
+        "digit_limits",
+        "hex_suffix",
+        "maximum_group",
+        "display_width",
+        "display_integer_digits",
+    ):
+        if field_name in source:
+            parameter[field_name] = source[field_name]
 
 
 def include_numeric_default(
@@ -150,16 +188,52 @@ def extract_parameters(
     last_page: int = 98,
 ) -> list[dict[str, object]]:
     parameters: list[dict[str, object]] = []
+    previous_page = first_page - 1
+    same_as_source: dict[str, object] | None = None
     with pdfplumber.open(pdf_path) as manual:
         # Function parameter tables occupy pages 57-94 in V2.0-A2 and
         # pages 57-98 in V5.0-A13.
         for page_number in range(first_page, last_page + 1):
             page = manual.pages[page_number - 1]
+            first_table_row = True
             for table in page.extract_tables():
                 for row in table:
                     cells = [normalize(cell) for cell in row]
                     if not cells:
                         continue
+                    # A long Set Range cell may continue as the first anonymous
+                    # row on the next PDF page.  Merge it into the preceding
+                    # parameter instead of silently dropping half the options.
+                    if (
+                        first_table_row
+                        and page_number == previous_page + 1
+                        and parameters
+                        and not cells[0]
+                        and len(cells) > 2
+                        and (cells[1] or cells[2])
+                    ):
+                        if cells[1]:
+                            continuation = clean_pdf_artifacts(cells[1])
+                            parameters[-1]["description"] = normalize(
+                                f"{parameters[-1]['description']} {continuation}"
+                            )
+                        if cells[2]:
+                            continuation = clean_pdf_artifacts(cells[2])
+                            parameters[-1]["range"] = normalize(
+                                f"{parameters[-1]['range']} {continuation}"
+                            )
+                            minimum, maximum = infer_limits(
+                                str(parameters[-1]["range"]),
+                                int(parameters[-1]["scale"]),
+                                parameters[-1].get("display_width"),
+                                str(parameters[-1]["encoding"]),
+                            )
+                            minimum, maximum = include_numeric_default(
+                                str(parameters[-1]["default"]), minimum, maximum
+                            )
+                            parameters[-1]["minimum"] = minimum
+                            parameters[-1]["maximum"] = maximum
+                    first_table_row = False
                     code_match = CODE_PATTERN.fullmatch(cells[0])
                     if not code_match:
                         continue
@@ -212,17 +286,19 @@ def extract_parameters(
                         # the manual marks it reserved.
                         display_width = 5
                     display_integer_digits = None
-                    if code in {"F11.07", "F11.08"}:
+                    if code in {"F11.07", "F11.08"} and decimal_places(default) >= 4:
                         # The tested EN600-2S0007 firmware uses two decimal
                         # places for its PID gains. Modbus returns 50/25 while
-                        # the keypad shows 000.50/00.25. The V5 manual instead
-                        # documents four decimal places.
+                        # the keypad shows 000.50/00.25. Only V5 prints four
+                        # decimal places; the legacy V2 profile keeps its
+                        # documented three-decimal representation.
                         scale = 100
                         display_integer_digits = 3 if code == "F11.07" else 2
                     minimum, maximum = infer_limits(
                         value_range,
                         scale,
                         display_width,
+                        encoding,
                     )
                     minimum, maximum = include_numeric_default(
                         default,
@@ -280,6 +356,13 @@ def extract_parameters(
                         # replay a read value during a bulk write.
                         parameter["write_only_if_edited"] = True
                     parameters.append(parameter)
+                    if "same as above" in value_range.lower():
+                        if same_as_source is None:
+                            raise RuntimeError(f"{code}: Same as above has no source row")
+                        inherit_same_as(parameter, same_as_source)
+                    elif value_range:
+                        same_as_source = parameter
+            previous_page = page_number
 
     codes = [parameter["code"] for parameter in parameters]
     addresses = [parameter["address"] for parameter in parameters]

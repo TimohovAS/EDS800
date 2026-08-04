@@ -623,7 +623,7 @@ class InverterParameterEditor:
                 self.session.display(param),
                 self._unit(param),
                 self._default_display(param),
-                self._short_range(self._text(param, "range")),
+                self._short_range(self.profile.range_text(param, self.language)),
             ]
             for param in self.rows
         ]
@@ -740,7 +740,10 @@ class InverterParameterEditor:
 
         default = self._default_display(param) or "—"
         unit = f" {self._unit(param)}" if param["unit"] and param["default"] else ""
-        body = f"{t('details.default', value=default)}{unit}\n{self._text(param, 'range')}"
+        body = (
+            f"{t('details.default', value=default)}{unit}\n"
+            f"{self.profile.range_text(param, self.language)}"
+        )
         note = self._text(param, "note")
         if note:
             body += "\n\n" + t("details.translation_note", note=note)

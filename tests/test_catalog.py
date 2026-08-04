@@ -143,6 +143,32 @@ class CatalogInvariantTests(unittest.TestCase):
                     )
                     self.assertTrue(profile.text(parameter, "range", "ru") or not parameter["range"])
 
+    def test_same_as_rows_are_explicit_and_inherit_validation(self):
+        for profile in CATALOG:
+            by_code = profile.by_code()
+            for parameter in profile.parameters:
+                if "same as above" not in parameter["range"].lower():
+                    continue
+                with self.subTest(profile=profile.key, code=parameter["code"]):
+                    source_code = parameter.get("same_as")
+                    self.assertIn(source_code, by_code)
+                    source = by_code[source_code]
+                    for field in ("minimum", "maximum", "scale", "encoding"):
+                        self.assertEqual(parameter[field], source[field])
+                    self.assertIn(source_code, profile.range_text(parameter, "ru"))
+
+    def test_range_text_names_every_structured_reference(self):
+        for profile in CATALOG:
+            for parameter in profile.parameters:
+                text = profile.range_text(parameter, "ru")
+                for field in ("same_as", "minimum_from", "maximum_from"):
+                    reference = parameter.get(field)
+                    if reference:
+                        with self.subTest(
+                            profile=profile.key, code=parameter["code"], field=field
+                        ):
+                            self.assertIn(reference, text)
+
     def test_keys_are_unique_and_resolvable(self):
         seen = set()
         for profile in CATALOG:
@@ -226,6 +252,104 @@ class KnownModelTests(unittest.TestCase):
         profile = CATALOG["en600_v5"]
         parameter = profile.by_code()["F01.11"]
         self.assertNotIn(",0", profile.text(parameter, "range", "ru"))
+
+    def test_v5_russian_f0119_documents_both_control_digits(self):
+        profile = CATALOG["en600_v5"]
+        parameter = profile.by_code()["F01.19"]
+        text = profile.text(parameter, "range", "ru")
+        self.assertIn("Разряд единиц", text)
+        self.assertIn("Разряд десятков", text)
+        self.assertIn("десятичной точки", text)
+
+    def test_v5_frequency_limit_ranges_name_the_related_parameter(self):
+        profile = CATALOG["en600_v5"]
+        by_code = profile.by_code()
+        self.assertIn("F01.12", profile.text(by_code["F01.11"], "range", "ru"))
+        self.assertIn("F01.11", profile.text(by_code["F01.12"], "range", "ru"))
+
+    def test_en600_page_boundary_enums_are_complete(self):
+        expected = {
+            "en600_v2": {
+                "F00.01": (65, "57~65"),
+                "F08.18": (96, "94~96"),
+                "F09.00": (60, "42~60"),
+                "F09.35": (25, "20~25"),
+                "F18.00": (15, "11~15"),
+                "F26.00": (50, "40~50"),
+            },
+            "en600_v5": {
+                "F00.01": (70, "67~70"),
+                "F01.00": (14, "10~14"),
+                "F01.06": (8, "8:"),
+                "F08.18": (96, "93~96"),
+                "F09.00": (60, "53~60"),
+                "F09.35": (25, "20~25"),
+                "F14.17": (8, "8:"),
+                "F16.05": (4, "3~4"),
+                "F18.00": (15, "11~15"),
+                "F26.00": (50, "42~50"),
+            },
+        }
+        for profile_key, cases in expected.items():
+            profile = CATALOG[profile_key]
+            by_code = profile.by_code()
+            for code, (maximum, marker) in cases.items():
+                with self.subTest(profile=profile_key, code=code):
+                    self.assertEqual(by_code[code]["maximum"], maximum)
+                    english = by_code[code]["range"].replace("～", "~")
+                    russian = profile.text(by_code[code], "range", "ru").replace("～", "~")
+                    self.assertIn(marker, english)
+                    self.assertIn(marker, russian)
+
+    def test_en600_hex_ranges_use_hexadecimal_limits(self):
+        for profile_key in ("en600_v2", "en600_v5"):
+            by_code = CATALOG[profile_key].by_code()
+            with self.subTest(profile=profile_key, code="F05.08"):
+                self.assertEqual(by_code["F05.08"]["maximum"], 0xFF)
+            for number in range(1, 16):
+                code = f"F10.{number:02d}"
+                with self.subTest(profile=profile_key, code=code):
+                    self.assertEqual(by_code[code]["maximum"], 0xE22)
+
+    def test_en600_reserved_enum_tails_remain_selectable(self):
+        for profile_key in ("en600_v2", "en600_v5"):
+            parameter = CATALOG[profile_key].by_code()["F00.19"]
+            with self.subTest(profile=profile_key):
+                self.assertEqual(parameter["maximum"], 10)
+
+    def test_v5_page_boundary_composite_fields_have_all_digits(self):
+        by_code = CATALOG["en600_v5"].by_code()
+        self.assertEqual(by_code["F00.21"]["digit_limits"], "2111")
+        self.assertEqual(by_code["F10.00"]["digit_limits"], "1123")
+        for code in ("F00.21", "F10.00"):
+            text = CATALOG["en600_v5"].text(by_code[code], "range", "ru")
+            self.assertIn("Разряд сотен", text)
+            self.assertIn("Разряд тысяч", text)
+
+    def test_v2_page_boundary_composite_fields_have_all_digits(self):
+        profile = CATALOG["en600_v2"]
+        by_code = profile.by_code()
+        expected = {
+            "F00.21": "1111",
+            "F05.02": "135",
+            "F06.00": "2222",
+            "F06.21": "11111",
+            "F19.32": "1222",
+        }
+        for code, digit_limits in expected.items():
+            with self.subTest(code=code):
+                self.assertEqual(by_code[code]["digit_limits"], digit_limits)
+                text = profile.text(by_code[code], "range", "ru")
+                self.assertIn("Разряд", text)
+
+    def test_v2_russian_composite_and_conditional_text_is_complete(self):
+        profile = CATALOG["en600_v2"]
+        by_code = profile.by_code()
+        pwm = profile.text(by_code["F04.10"], "range", "ru")
+        self.assertIn("Разряд сотен", pwm)
+        self.assertIn("Разряд тысяч", pwm)
+        torque = profile.text(by_code["F18.16"], "range", "ru")
+        self.assertIn("F00.24", torque)
 
 
 if __name__ == "__main__":

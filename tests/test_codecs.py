@@ -94,11 +94,19 @@ class BcdCodecTests(unittest.TestCase):
 
     def test_unconstrained_digits_stay_free(self):
         """A digit the manual does not describe must not be guessed at."""
-        parameter = EN600["F00.21"]
-        self.assertEqual(parameter["digit_limits"][:2], "**")
-        self.assertIsNone(codecs.validate_value(parameter, "9911"))
+        parameter = EN600["F00.22"]
+        self.assertEqual(parameter["digit_limits"][1:], "***")
+        self.assertIsNone(codecs.validate_value(parameter, "1999"))
         self.assertEqual(
-            codecs.validate_value(parameter, "0099").key, "valid.digit_limits"
+            codecs.validate_value(parameter, "2999").key, "valid.digit_limits"
+        )
+
+    def test_digits_continued_on_the_next_manual_page_are_constrained(self):
+        parameter = EN600["F00.21"]
+        self.assertEqual(parameter["digit_limits"], "2111")
+        self.assertIsNone(codecs.validate_value(parameter, "2111"))
+        self.assertEqual(
+            codecs.validate_value(parameter, "3111").key, "valid.digit_limits"
         )
 
     def test_digit_alphabet_is_enforced(self):

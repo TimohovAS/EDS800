@@ -1,0 +1,85 @@
+name: Publish v3.1.1
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-v3.1.1.yml
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Python dependencies
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Run tests
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -m unittest discover -s tests -v
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: .\packaging\build.ps1
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          $installer = Get-Item "packaging\output\ENC-Inverter-Editor-3.1.1-Setup.exe"
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer.FullName).Hash
+          @"
+          ## ENC Inverter Parameter Editor 3.1.1
+
+          Windows installer for ENC Inverter Parameter Editor.
+
+          ### Changes
+
+          - Audited EN600 V2 and V5 parameter tables against the manuals.
+          - Restored options and digit descriptions split across PDF pages.
+          - Added explicit parameter references to dependent ranges.
+          - Corrected hexadecimal limits, composite digit validation, and Russian descriptions.
+
+          ### Installation
+
+          Download **ENC-Inverter-Editor-3.1.1-Setup.exe** and run it. The installer supports Russian and English and upgrades an existing installation.
+
+          > The installer is not digitally signed. Windows SmartScreen may display a warning.
+
+          SHA-256:
+
+          $hash
+          "@ | Set-Content -Encoding utf8 release-notes.md
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v3.1.1 `
+            "packaging\output\ENC-Inverter-Editor-3.1.1-Setup.exe" `
+            --target "$env:GITHUB_SHA" `
+            --title "ENC Inverter Parameter Editor 3.1.1" `
+            --notes-file release-notes.md
