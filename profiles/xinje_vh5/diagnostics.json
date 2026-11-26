@@ -1,0 +1,183 @@
+{
+  "tables": {
+    "faults": {
+      "1": {
+        "en": "Acceleration overcurrent",
+        "ru": "Сверхток при разгоне"
+      },
+      "2": {
+        "en": "Deceleration overcurrent",
+        "ru": "Сверхток при торможении"
+      },
+      "3": {
+        "en": "Constant-speed overcurrent",
+        "ru": "Сверхток при постоянной скорости"
+      },
+      "4": {
+        "en": "Acceleration overvoltage",
+        "ru": "Перенапряжение при разгоне"
+      },
+      "5": {
+        "en": "Deceleration overvoltage",
+        "ru": "Перенапряжение при торможении"
+      },
+      "6": {
+        "en": "Constant-speed overvoltage",
+        "ru": "Перенапряжение при постоянной скорости"
+      },
+      "7": {
+        "en": "Buffer resistor overload",
+        "ru": "Перегрузка зарядного резистора"
+      },
+      "8": {
+        "en": "Undervoltage",
+        "ru": "Пониженное напряжение"
+      },
+      "9": {
+        "en": "Inverter overload",
+        "ru": "Перегрузка преобразователя"
+      },
+      "10": {
+        "en": "Motor overload",
+        "ru": "Перегрузка двигателя"
+      },
+      "11": {
+        "en": "Input phase loss",
+        "ru": "Потеря входной фазы"
+      },
+      "12": {
+        "en": "Output phase loss",
+        "ru": "Потеря выходной фазы"
+      },
+      "13": {
+        "en": "Heatsink overtemperature",
+        "ru": "Перегрев радиатора"
+      },
+      "14": {
+        "en": "Contactor fault",
+        "ru": "Ошибка контактора"
+      },
+      "15": {
+        "en": "Current detection fault",
+        "ru": "Ошибка измерения тока"
+      },
+      "16": {
+        "en": "Motor tuning fault",
+        "ru": "Ошибка автонастройки двигателя"
+      },
+      "17": {
+        "en": "Encoder fault",
+        "ru": "Ошибка энкодера"
+      },
+      "18": {
+        "en": "Motor short circuit to ground",
+        "ru": "Замыкание двигателя на землю"
+      },
+      "20": {
+        "en": "Cycle-by-cycle current limit fault",
+        "ru": "Ошибка поциклового ограничения тока"
+      },
+      "21": {
+        "en": "Pole-position detection failed",
+        "ru": "Ошибка определения положения полюса"
+      },
+      "22": {
+        "en": "UVW feedback error",
+        "ru": "Ошибка обратной связи UVW"
+      },
+      "23": {
+        "en": "Brake resistor short circuit",
+        "ru": "Короткое замыкание тормозного резистора"
+      },
+      "26": {
+        "en": "SVC stall fault",
+        "ru": "Срыв SVC"
+      },
+      "43": {
+        "en": "External fault",
+        "ru": "Внешняя авария"
+      },
+      "44": {
+        "en": "Communication timeout",
+        "ru": "Тайм-аут связи"
+      },
+      "45": {
+        "en": "EEPROM read/write fault",
+        "ru": "Ошибка чтения/записи EEPROM"
+      },
+      "46": {
+        "en": "Running time reached",
+        "ru": "Истекло заданное время работы"
+      },
+      "47": {
+        "en": "Power-on time reached",
+        "ru": "Истекло заданное время под напряжением"
+      },
+      "48": {
+        "en": "User-defined fault 1",
+        "ru": "Пользовательская авария 1"
+      },
+      "49": {
+        "en": "User-defined fault 2",
+        "ru": "Пользовательская авария 2"
+      },
+      "50": {
+        "en": "PID feedback lost",
+        "ru": "Потеря обратной связи ПИД"
+      },
+      "51": {
+        "en": "Motor switched while running",
+        "ru": "Переключение двигателя во время работы"
+      },
+      "52": {
+        "en": "Excessive speed deviation",
+        "ru": "Большое отклонение скорости"
+      },
+      "53": {
+        "en": "Motor overspeed",
+        "ru": "Превышение скорости двигателя"
+      },
+      "54": {
+        "en": "Motor overtemperature",
+        "ru": "Перегрев двигателя"
+      }
+    },
+    "state": {
+      "1": {
+        "en": "Forward running",
+        "ru": "Вращение вперёд"
+      },
+      "2": {
+        "en": "Reverse running",
+        "ru": "Вращение назад"
+      },
+      "3": {
+        "en": "Stopped",
+        "ru": "Остановлен"
+      }
+    }
+  },
+  "fields": {
+    "MB.16": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "U0-33": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "U0-75": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "MB.00": {
+      "kind": "code",
+      "table": "state",
+      "zero_key": "diag.invalid"
+    }
+  },
+  "intro": {
+    "en": "Read-only VH5 state/fault snapshot: 0x1200, 0x1210, U0-33 and U0-75. Unknown codes remain explicit. No start, stop, reset or factory-initialization command is sent.",
+    "ru": "Снимок состояния и аварий VH5, только чтение: 0x1200, 0x1210, U0-33 и U0-75. Неизвестные коды не скрываются. Команды пуска, останова, сброса аварий и заводского сброса не передаются."
+  }
+}

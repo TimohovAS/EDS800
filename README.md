@@ -1,15 +1,46 @@
-# ENC Inverter Parameter Editor
+# Inverter Parameter Editor
 
-**Version 3.0.2**
+**Version 3.8.0**
 
 A Tkinter desktop application for reading, editing, backing up, and restoring
-ENC inverter parameters over Modbus RTU.
+ENC, Danfoss, VACON and XINJE inverter parameters over Modbus RTU or native Danfoss FC.
 
 ## Interface
 
-- Sidebar with the connection card (model, serial port, Modbus ID, **Test
-  link**) and the localized manual names of parameter groups with their
-  parameter counts; **All parameters** shows the complete map.
+- Full-height group sidebar with localized manual group names and parameter
+  counts; **All parameters** shows the complete map. Drag the divider to change
+  the sidebar width. The compact workspace fits a 1100×660 laptop window.
+- The gear in the blue header opens **Connection settings** for manufacturer,
+  model, serial port, device address, protocol, baud rate, parity, stop bits and
+  response timeout. Hover over or focus the gear to see the full link summary.
+  **Test link** and **Alarms / diagnostics** are in the bottom status bar.
+  It also opens on first launch. **Apply** saves PC settings without contacting
+  the drive; **Test link** checks the dialog's current draft by reading one
+  parameter (plus revision detection for an automatic profile). The dialog stays
+  open and displays the tested port/frame/address and the result or error as
+  borderless text in the free space below the device address. Long messages are
+  available in full on hover; results do not enlarge the dialog.
+  Testing never applies settings, clears edits, or changes drive parameters;
+  use **Apply** or **Work offline** to commit the draft. Fields are locked during
+  the test; **Cancel test** interrupts it without closing the dialog. Changing a
+  field clears the previous result. Eight data bits are fixed. Serial settings
+  are saved per profile and never reconfigure the drive. Changing the target or
+  serial settings clears cached values, with confirmation if there are edits;
+  **Cancel** and applying unchanged settings preserve edits. An unplugged saved
+  port is kept, never silently replaced by a different adapter.
+  FC uses addresses 1–126; Modbus normally uses 1–247, with
+  VACON NXL's documented extension to 255 supported by its profile.
+- The folder and floppy-disk buttons in the blue header load and save settings
+  files (Ctrl+O / Ctrl+S). Hover over or focus an icon for a localized tooltip;
+  both buttons are disabled while communication is in progress. There is no
+  separate menu bar taking up vertical space.
+- **Work offline** in the connection dialog allows editing without a drive.
+  The load/save icons (Ctrl+O / Ctrl+S) load a settings file or export known
+  writable values with validated edits; unknown values are not filled in.
+  Offline export does not read the drive or mark edits as written. In online mode,
+  Save keeps the existing backup behavior: read writable parameters from the drive
+  and save that snapshot. Offline device actions reopen connection setup without
+  opening a port.
 - Instant search over parameter codes and descriptions, plus a row filter
   (`All`, `Writable`, `Read-only`, `Edited`, `Errors`).
 - Colour-coded table: edited cells are amber, failed reads are red, read-only
@@ -18,8 +49,26 @@ ENC inverter parameters over Modbus RTU.
   compared against the works settings at a glance. The comparison is made on
   the register, not the text, so `0.0500` and `000.05` count as the same
   setting; a parameter whose default depends on the motor is never marked.
-- Details panel under the table with the address, group, writability, manual
-  page and the full option list of the selected parameter.
+- Details panel under the table with the address, group, writability, manual page
+  and full option list, expanded by default (including upgrades from the old
+  collapsed default). Use the labeled **Hide / Show description** button to
+  collapse or expand it; drag the horizontal divider to resize. Its height and
+  an explicit visibility choice are remembered.
+  Search/actions wrap onto two rows when the workspace is narrow.
+- FC 51 diagnostics: decoded alarm/warning/status words and all ten fault-log
+  entries in the read-only **Decoded status** column and **Alarms / diagnostics**
+  window. This works over RS485 without an LCP keypad. Unknown bits/codes stay
+  explicit; a failed read is never shown as "no alarms". The window reads a
+  timestamped snapshot, not a continuous monitor; refresh it after changes.
+- **Reset trip** pulses only FC control bit 7 (wire coil 7), with confirmation,
+  fresh safety checks and a status reread. It refuses RUN/JOG, running/auto-start,
+  trip lock, failed status reads, or an ignored control word (bit 10 = 0).
+  It never enables an ignored control word, changes the control source, writes
+  Start/speed, clears history or restores factory defaults. Remove external RUN
+  commands before reset: clearing a fault can otherwise permit a restart.
+  This command is available over **Modbus RTU only**. Native FC deliberately
+  exposes only the parameter channel: a reset would require a valid process
+  control word and would also replace the motor's bus speed reference.
 - Status bar with the link indicator, live progress and a **Cancel** button;
   all Modbus traffic runs on a worker thread, so the window never freezes.
 - English, Russian and Serbian (latin) interface. The language follows the
@@ -44,13 +93,72 @@ reconciled explicitly and show a source note in the parameter details panel.
 
 ## Supported inverter profiles
 
-- **ENC EDS800** - 198 parameters in groups `F0` through `Fd`.
+### XINJE VH5-45P5-B
+
+Select manufacturer **XINJE**, model **VH5-45P5-B — 5.5 kW / 380 V**.
+The profile comes from the official XINJE VH5 manual INVC0620240409EN1.3.3:
+548 parameters, 22 groups, 427 settings supported for writing (some require a
+successfully read selector/version), Russian names and group titles,
+and read-only state/fault decoding (including communication timeout and overcurrent).
+Detailed ranges remain in the source language. Default PC communication is
+**Modbus RTU, 19200 baud, 8E1, address 1**, based on P9-01/02/03; the appendix's
+generic no-parity sentence contradicts the explicit P9-03 factory code 1.
+
+Reads use at most 12 registers per same-group request. Parameter writes use
+FC06 and the documented power-off-memory addresses; process-command registers
+(start/stop/jog, bus reference and reset) are not exposed. P9 communication
+settings are written only when explicitly edited, never replayed by bulk restore.
+All four ramp groups (P0-18/19 and PC-03..08) use PC-09 resolution. Jog ramps
+PC-01/02 retain their documented fixed 0.1 s unit. PLC step times follow PB-50
+(seconds/hours); changing that unit and its times in one batch is rejected.
+Reads automatically include selectors and referenced bounds; writes verify the
+live selector/version/guard values before sending dependent parameters.
+PF meanings follow **functional version P8-16**, not performance version P8-15.
+The panel's `uXX.XX` register is decoded only when decimal/BCD interpretations
+are unambiguous. Unknown/unsupported revisions block PF writes.
+Reviewed AI voltage curves, U/f/PID/frequency bounds, S-curve sum constraints,
+hex display masks and 380 V model voltage limits are included. A9 address
+entries are editable only on supported firmware with A9-00 disabled, and only
+when explicitly edited. A9 activation is not a normal/bulk write.
+62 configuration rows remain blocked (61 marked writable in the manual plus
+A1-11, whose modification column is blank). Their exact codes and reasons are
+listed in `VH5_SUPPORT_STATUS.md`; the app header also states this limitation.
+Unconfirmed digit packing, parameter-reference packing, service actions and
+contradictory addresses are not guessed. Group A4 explicitly cannot be written
+over communication according to the detailed manual.
+JSON backups now include all read results, including read-only/unsupported raw
+registers and versions. Loading a backup never makes a read-only row writable.
+The complete functional-37.44 snapshot and panel confirmation corrected PC-44/45
+to 0.1 V resolution and P2-26 to signed voltage. Negative P2-26 writes are
+enabled only on the confirmed 37.44 revision; other revisions retain the manual's
+0 V lower limit. P2-54 uses panel-style `H.321` hex, P2-55 shows `H.000`, whereas
+P7-39/P8-22 use decimal digits. These four are enabled only on confirmed functional 37.44,
+only when explicitly edited, with live-value and reserved-bit checks before
+any batch writes. P2-54/55 only allow changes to the active ones digit;
+historical/inactive digits stay unchanged. Zero-only panel samples for P0-05/20,
+P2-16 and P3-11 do not unlock their unconfirmed higher-digit packing.
+Fixture-based tests preserve the original raw readings.
+PC-41/42 are omitted because the table duplicates unrelated PC-28/29 addresses;
+local-only P8/A4 and U4 rows without published bus addresses are not invented.
+Hardware communication and firmware compatibility still require verification on
+the actual drive. A successful read does not prove the firmware-dependent rows
+are supported. The generator is `tools/extract_vh5_parameters.py`.
+
+- **ENC EDS800** - 198 parameters in 11 groups with English and Russian
+  explanations, option values, and fault history decoding.
 - **ENC EN600-2S0007 — Auto revision** - probes `F02.26` before the first
   operation and selects the matching map automatically.
 - **ENC EN600-2S0007 — V2.0-A2 (legacy)** - 562 parameters; retained for
   older firmware where `F02.26` is unavailable.
 - **ENC EN600-2S0007 — V5.0-A13** - 651 parameters in 26 groups, including
   `F02.26`, F17, F21, F22, F24, and documented reserved keypad rows.
+- **Danfoss VLT Micro Drive FC 51 — 5.5 kW / T4** - type code
+  `FC-051P5K5T4E20HXBXCXXXSXXX`; 227 parameters from the MG02C602
+  typed parameter lists, displayed as 334 rows including array elements in
+  13 groups. English and Russian names, options and group titles are included.
+
+Choose **Manufacturer** first; the model list shows only that manufacturer's
+profiles. The saved profile also restores the manufacturer on the next launch.
 
 Select the inverter model before reading or loading settings. The group list,
 parameter map, scaling, read-only flags, and Modbus addresses change with the
@@ -60,10 +168,134 @@ Auto detection reads `F02.26` without writing anything. A value in its
 documented `95–115%` range selects V5.0-A13; otherwise the legacy V2.0-A2 map
 is used. Saved JSON files record the detected concrete revision.
 
+### ENC EDS800 — справочник по функциям
+
+Выберите модель **ENC EDS800** и язык **RU**. В таблице появятся русские названия,
+а в панели **Показать описание** — назначение выбранного параметра, варианты
+значений, связанные коды и номер страницы PDF. Поиск находит коды и текст
+описаний на русском и английском.
+
+| Группа | Что в ней настраивается |
+|---|---|
+| `F0` | Источник задания частоты и команд пуска, направление, разгон и замедление, кривая V/F |
+| `F1` | Пусковая частота, способ останова и торможение постоянным током |
+| `F2` | Режим JOG, настройки RS-485, наборы разгона и замедления, ступени и пропуски частот |
+| `F3` | ПИД-регулятор, поддержание давления, режим сна и назначение реле |
+| `F4` | Режим встроенного ПЛК и семь ступеней с заданной длительностью |
+| `F5` | Назначение входов X1–X5 и выходов OC, AO, DO, режим FWD/REV, счётчик и таймер |
+| `F6` | Траверса — периодическое качание частоты |
+| `F7` | Масштабирование задания по VCI, CCI и импульсным сигналам |
+| `F8` | Номинальные данные двигателя и поправка индикации частоты |
+| `F9` | Перегрузка, предотвращение перенапряжения, ограничение тока и автосброс |
+| `Fd` | Шесть записей об авариях и рабочие показания на момент последней аварии |
+
+Для прочитанных `Fd.00`–`Fd.05` редактор показывает код `E001`–`E023` и его
+расшифровку. Описания сверены с разделами 5.2, 6.1–6.11 и 7.1–7.2.
+[Руководство ENC EDS800 V3.0-A4](https://thanglongautomation.com/upload/files/ENC-EDS800%20Manual.pdf)
+
+### Connecting a Danfoss FC 51
+
+For an unconfigured drive without an LCP keypad, select **Danfoss**, **VLT Micro
+Drive FC 51**, the USB–RS485 COM port and device address **1**. The profile now
+defaults to **Danfoss FC, 9600 8E1**, matching the factory settings. Use **Test
+link**. **Settings…** lets you match a drive configured differently; the program
+does not scan devices or automatically change their protocol.
+
+For an already configured Modbus drive, choose **Modbus RTU** in **Settings…**
+(preset **19200 8E1**), then match its actual baud rate, parity and address.
+On the drive, Modbus requires `8-30 = 2`; `8-31` is the address, `8-32` selects
+the baud rate and `8-33` the parity/stop bits. Changing `8-30` requires a power
+cycle before the new protocol takes effect. A PC-side protocol selection does
+not change `8-30`. No physical connection to the user's drive was available
+for the native FC implementation; validate it on the actual hardware before
+commissioning or restoring settings.
+
+The native FC transport implements the parameter channel from MG02K402:
+STX/LGE/ADR framing, XOR BCC, PNU/subindex correlation, word/double-word values,
+indexed values, read-only text and explicit EEPROM word/double-word writes.
+Parameter telegrams always carry **CTW=0 / REF=0 (Data valid=0)**, never a valid
+Start/Jog/control command. Echoes, malformed packets, mismatched replies and
+unconfirmed write values are not treated as success. Writes are never retried.
+Reading indexed values uses IND, not Modbus index-register writes.
+
+FC 51 has a different register map from ENC: bus addresses are `10 × PNU − 1`
+(for example `3-03` starts at address 3029). The editor handles signed values,
+one- and two-register numbers, and read-only ASCII identification fields.
+Indexed values such as `3-10[0]` through `3-10[7]` select their index through
+holding register 9 (bus address 8). Parameter writes enable nonvolatile
+storage through coil 65 (bus address 64); failed index/storage selection stops
+the affected operation instead of using stale settings.
+
+Reset, tuning, copying and communication-change commands are written only
+after an explicit edit; a bulk restore does not replay their read-back values.
+Communication changes are sent after ordinary settings.
+
+Sources are the official Danfoss
+[Programming Guide MG02C602](https://assets.danfoss.com/documents/273445/AU361182403098en-000301.pdf)
+(software 2.7X) and
+[Design Guide MG02K402](https://assets.danfoss.com/documents/273509/AJ361178983102en-000401.pdf).
+The older Russian MG02C250 supplies names, not bus types or ranges.
+Disagreements between overview tables and detailed descriptions are noted in
+parameter details; writable ranges use their intersection. Rows `8-80`–`8-83`
+and `18-80`–`18-81` have no bus-type entry in these typed lists and are omitted
+rather than assigned a guessed register layout. Hardware communication must
+still be checked on the particular drive and firmware.
+
+### Connecting a VACON NXL NXL00075C5H1SSS00
+
+Select **VACON → NXL00075C5H1SSS00 — Multi-Control v3.45**, the USB–RS485
+port and matching device address. The PC preset is **Modbus RTU, 9600 8N1,
+address 1**. Match the actual drive settings in **Settings…**. On the keypad,
+check `P6.10.2 = 1` (Modbus), `P6.10.3` (address), `P6.10.4 = 5` (9600),
+`P6.10.5 = 0` (one stop bit) and `P6.10.6 = 0` (no parity). Do not change the
+control place merely to read/edit parameters. Application table `P3.1` uses
+1=I/O, 2=keypad, 3=fieldbus; the user manual's process-data paragraph saying
+2=fieldbus is inconsistent with that application table.
+
+This profile is specifically **Multi-Control ALFIFF20 v3.45**, not an arbitrary
+NXL application. Verify the application/version before writing. The type code
+identifies a 380–500 V, MF4/IP54 drive with internal brake chopper; the rating
+table lists IL=7.6 A and IH=5.6 A. Hardware operation has not been verified.
+
+There are **170 unique register IDs in 13 groups, 128 writable**. The two
+duplicate menu entries (`P2.2.12`/`P2.1.15`, `P2.3.5`/`P2.1.16`) are stored once,
+with searchable aliases listed in their ranges. IDs lacking a published bus
+address (keypad-only `R3.2`, `R3.5`, `R3.6`, system-menu settings) are not guessed.
+Wire addresses are **ID − 1**, and read batches are limited to eleven words.
+No FC51 EEPROM coil or index-register operation is used.
+
+The **FB** group has documented engineering-unit readouts, current status and
+the active fault with its own 28-code fault decoder. Other menu-V1 values whose
+bus scale is not specified are explicitly labelled **raw**, without engineering
+units; `V1.26` has its documented 0.1% scale. Fault history H5 and remote reset
+are not exposed, and process-control inputs 2001–2011 are absent.
+
+Five motor/drive-dependent current parameters (`P2.1.5`, `P2.1.9`, `P2.4.3`,
+`P2.4.8`, `P2.7.12`) are deliberately **read-only raw values** until write limits
+and bus precision are verified on this MF4. This is a profile safety restriction,
+not a claim that the drive itself cannot change them. Identification, control
+place, direction, Stop-button mode and automatic restart require explicit edits;
+a backup/bulk restore never replays their read-back values automatically.
+
+The generator includes source corrections explicitly: `P2.9.1` accepts option 2,
+`P2.2.6` accepts option 0, AI selectors accept only 10/11/20/21, and brake chopper
+selection accepts only 0/1/3. Russian names, choices and group titles are included.
+
+Sources: [NXL Multi-Control application manual](https://assets.danfoss.com/documents/272960/AB361177530779en-000301.pdf),
+[NXL user manual](https://assets.danfoss.com/documents/273274/BC361182955783en-000301.pdf),
+and [NX Modbus addressing examples](https://assets.danfoss.com/documents/latest/270758/BC361182933763en-000101.pdf).
+Regenerate the map with:
+
+```powershell
+.\.venv\Scripts\python.exe tools\extract_nxl_parameters.py NXL-Multi-Control.pdf profiles\vacon_nxl
+```
+
 ## Project layout
 
 ```
 enc_editor/catalog.py     profiles loaded and validated from profiles/
+           connection.py   validated per-profile PC connection settings
+           fc_protocol.py  native Danfoss FC parameter channel
            codecs.py      register bits <-> displayed text, one class per encoding
            dependencies.py  bounds between parameters: write order and refusals
            transport.py   Modbus RTU: batched reads, writes, cancellation
@@ -90,6 +322,7 @@ setting and detection rule comes from `profiles/`.
 ```json
 {
   "key": "my_model",
+  "manufacturer": "My manufacturer",
   "model": "MY-MODEL-1", "series": "MY", "order": 50,
   "label": { "en": "My inverter", "ru": "Мой инвертор" },
   "link": { "baudrate": 9600, "parity": "N", "stopbits": 1, "bytesize": 8,
@@ -117,8 +350,15 @@ setting and detection rule comes from `profiles/`.
    parameter (`0.00Hz~upper limit frequency`) carries `minimum_from` /
    `maximum_from` with that parameter's code, which is what drives the write
    order; `tools/build_dependencies.py` derives those from the printed ranges.
+   Other register layouts may specify `register_count`, `data_bits`, `signed`
+   and `array_index`. The FC 51 manifest uses `addressing: "danfoss_pnu"`,
+   `link.index_register` and `link.persist_coil`; ENC retains one-register
+   addressing by default. Sparse selections use `allowed_values`; `text`
+   fields are read-only ASCII packed in `register_count` registers.
 3. Optional: a Russian catalogue in `translations/ru.json` as
    `{"language": "ru", "parameters": {"F00.00": {"description": "...", "range": "..."}}}`.
+   The optional `help` field in either catalogue supplies the explanation and
+   option list in the details panel and is included in search.
 4. Run the tests. `tests/test_catalog.py` checks the new model automatically:
    unique codes and addresses, addresses matching the group table, known
    encodings with their required fields, defaults that pass validation, and
@@ -186,6 +426,22 @@ be added to an installed copy without rebuilding.
 
 `packaging\enc_editor.ico` is generated by `packaging\make_icon.py`; run it
 again only if the brand colours in `enc_editor/ui/theme.py` change.
+
+## Update from GitHub
+
+Open **Updates** in the top bar to check GitHub Releases, read the release notes
+and download the Windows installer. Installed copies also check at startup by
+default. Turn this off in the Updates window. Downloads can be cancelled and
+are checked against the size and SHA-256 published by GitHub. **Install and
+close** starts Setup after the editor exits and uses the existing installation
+folder and scope. In the portable build or when running from source, the dialog
+shows the path to the verified installer for manual use.
+
+Pushing a version tag such as `v3.8.0` runs the Windows installer workflow. The
+workflow tests the code, checks the tag against `enc_editor.VERSION`, builds
+the installer and attaches it to a draft release. Publish the draft as a stable
+release to make it available in the app. A manual workflow run produces a
+build artifact for review.
 
 ## Parameter handling
 

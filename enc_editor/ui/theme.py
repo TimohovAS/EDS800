@@ -170,9 +170,19 @@ def apply_theme(root, style: ttk.Style, palette: Palette) -> None:
     _button(style, "Accent.TButton", palette, palette.accent, palette.accent_text, palette.accent)
     _button(style, "Card.TButton", palette, palette.surface_alt, palette.text, palette.border)
     _button(style, "Brand.TButton", palette, palette.brand, palette.brand_muted, palette.brand)
+    _button(style, "BrandIcon.TButton", palette, palette.brand, palette.brand_text, palette.brand)
+    style.configure("BrandIcon.TButton", padding=(9, 6))
+    style.map(
+        "BrandIcon.TButton",
+        background=[("disabled", palette.brand), ("pressed", palette.accent_active),
+                    ("active", palette.accent)],
+        bordercolor=[("focus", palette.accent), ("active", palette.accent)],
+    )
     _button(style, "Danger.TButton", palette, palette.surface_alt, palette.danger, palette.border)
     style.configure("Icon.TButton", padding=(6, 4))
     _button(style, "Icon.TButton", palette, palette.surface_alt, palette.text, palette.border)
+    _button(style, "Details.TButton", palette, palette.surface_alt, palette.text, palette.border)
+    style.configure("Details.TButton", padding=(8, 4))
 
     style.configure(
         "TCombobox",

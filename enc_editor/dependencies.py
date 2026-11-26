@@ -51,26 +51,29 @@ class Dependency:
     code: str
     provider: str
     kind: str  # "minimum" or "maximum"
+    factor: float = 1
+    offset: float = 0
 
     @property
     def satisfied_by(self):
         """The comparison the drive enforces: value against the bound."""
         if self.kind == "maximum":
-            return lambda value, bound: value <= bound
-        return lambda value, bound: value >= bound
+            return lambda value, bound: value <= self.offset + self.factor * bound
+        return lambda value, bound: value >= self.offset + self.factor * bound
 
 
 def dependencies(parameter: Mapping[str, Any]) -> tuple[Dependency, ...]:
     """The bounds ``parameter`` takes from other parameters."""
     return tuple(
-        Dependency(parameter["code"], parameter[field_name], kind)
+        Dependency(parameter["code"], parameter[field_name], kind,
+                   parameter.get(field_name + "_factor", 1), parameter.get(field_name + "_offset", 0))
         for field_name, kind in BOUND_FIELDS.items()
         if parameter.get(field_name)
     )
 
 
 def _engineering(raw: Any, parameter: Mapping[str, Any]) -> float:
-    return float(raw) / (parameter.get("scale") or 1)
+    return codecs.numeric_raw(raw, parameter) / (parameter.get("scale") or 1)
 
 
 def _stored(
@@ -80,7 +83,7 @@ def _stored(
     if code not in loaded or code not in parameters:
         return None
     try:
-        return _engineering(loaded[code], parameters[code])
+        return _engineering(loaded[code], codecs.resolve_parameter(parameters[code], loaded))
     except (TypeError, ValueError):
         return None
 
@@ -106,6 +109,9 @@ def order_writes(
     requested = _requested(targets)
     edges: list[tuple[str, str]] = []
     for target in targets:
+        provider = target.parameter.get("scale_from")
+        if provider in requested:
+            edges.append((provider, target.code))
         for dependency in dependencies(target.parameter):
             if dependency.provider not in requested:
                 continue  # the bound is not moving; only conflicts() can help
@@ -210,6 +216,7 @@ def _problem(
     provider = parameters.get(dependency.provider, {})
     scale = provider.get("scale") or 1
     unit = provider.get("unit") or ""
+    bound = dependency.offset + dependency.factor * bound
     return Problem(
         f"valid.{dependency.kind}_from",
         {

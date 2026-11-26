@@ -5,6 +5,7 @@ later is covered without touching this file.
 """
 
 import unittest
+from decimal import Decimal
 
 from enc_editor import codecs
 from enc_editor.catalog import ENCODING_FIELDS, REQUIRED_PARAMETER_FIELDS, load_catalog
@@ -32,18 +33,31 @@ class CatalogInvariantTests(unittest.TestCase):
                 with self.subTest(profile=profile.key, code=parameter["code"]):
                     self.assertFalse(REQUIRED_PARAMETER_FIELDS - parameter.keys())
                     self.assertNotIn(parameter["code"], codes)
-                    self.assertNotIn(parameter["address"], addresses)
+                    location = (parameter["address"], parameter.get("array_index"))
+                    self.assertNotIn(location, addresses)
                     self.assertTrue(0 <= parameter["address"] <= 0xFFFF)
                     codes.add(parameter["code"])
-                    addresses.add(parameter["address"])
+                    addresses.add(location)
 
     def test_addresses_follow_the_manifest_group_table(self):
         for profile in CATALOG:
             if not profile.group_ids:
                 continue
             for parameter in profile.parameters:
-                group, _, number = parameter["code"].partition(".")
-                expected = (profile.group_ids[group] << 8) | int(number)
+                if profile.addressing == "explicit":
+                    continue  # Absolute addresses are independently pinned in the model tests.
+                elif profile.addressing == "parameter_id":
+                    expected = parameter["parameter_id"] - 1
+                elif profile.addressing == "danfoss_pnu":
+                    base = parameter["code"].split("[")[0]
+                    group, number = base.split("-")
+                    expected = 10 * (profile.group_ids[group] * 100 + int(number)) - 1
+                elif "-" in parameter["code"]:
+                    group, number = parameter["code"].split("-")
+                    expected = (profile.group_ids[group] << 8) | int(number)
+                else:
+                    group, _, number = parameter["code"].partition(".")
+                    expected = (profile.group_ids[group] << 8) | int(number)
                 with self.subTest(profile=profile.key, code=parameter["code"]):
                     self.assertEqual(parameter["address"], expected)
 
@@ -74,13 +88,15 @@ class CatalogInvariantTests(unittest.TestCase):
                     if not default:
                         self.assertIsInstance(parameter.get("default_note", ""), str)
 
-    def test_writable_maximums_fit_one_register(self):
+    def test_writable_maximums_fit_the_declared_registers(self):
         for profile in CATALOG:
             for parameter in profile.parameters:
                 if parameter.get("read_only"):
                     continue
                 with self.subTest(profile=profile.key, code=parameter["code"]):
-                    self.assertLessEqual(parameter["maximum"] * parameter["scale"], 0xFFFF)
+                    bits = parameter.get("data_bits", 16 * parameter.get("register_count", 1))
+                    maximum = (1 << (bits - bool(parameter.get("signed")))) - 1
+                    self.assertLessEqual(Decimal(str(parameter["maximum"])) * Decimal(str(parameter["scale"])), maximum)
 
     def test_digit_limits_match_the_field_width(self):
         for profile in CATALOG:
@@ -114,6 +130,9 @@ class CatalogInvariantTests(unittest.TestCase):
                 if parameter.get("read_only") or not parameter["default"]:
                     continue
                 with self.subTest(profile=profile.key, code=parameter["code"]):
+                    if codecs.context_codes(parameter):
+                        parameter = codecs.resolve_parameter(parameter, {"PB-50": 0, "A9-00": 0,
+                            "P8-16": 3744, "PC-09": 1})
                     self.assertIsNone(codecs.validate_value(parameter, parameter["default"]))
 
     def test_every_value_formats_without_raising(self):
@@ -205,7 +224,7 @@ class KnownModelTests(unittest.TestCase):
     def test_expected_models_are_present(self):
         self.assertEqual(
             set(CATALOG.keys),
-            {"eds800", "en600_auto", "en600_v2", "en600_v5"},
+            {"eds800", "en600_auto", "en600_v2", "en600_v5", "danfoss_fc51", "vacon_nxl", "xinje_vh5"},
         )
 
     def test_eds800_documented_addresses(self):
@@ -215,6 +234,24 @@ class KnownModelTests(unittest.TestCase):
         self.assertEqual(by_code["F2.11"]["address"], 0x020B)
         self.assertEqual(by_code["Fd.14"]["address"], 0x0D0E)
         self.assertTrue(all(p["read_only"] for p in CATALOG["eds800"].parameters if p["group"] == "Fd"))
+
+    def test_eds800_russian_help_covers_all_parameters(self):
+        profile = CATALOG["eds800"]
+        russian = profile.translations["ru"]
+        self.assertEqual(set(russian), set(profile.by_code()))
+        for parameter in profile.parameters:
+            with self.subTest(code=parameter["code"]):
+                self.assertTrue(parameter["help"])
+                self.assertTrue(russian[parameter["code"]]["help"])
+                self.assertGreater(parameter["manual_pdf_page"], 0)
+
+    def test_eds800_plc_mode_checks_the_documented_digit_positions(self):
+        parameter = CATALOG["eds800"].by_code()["F4.00"]
+        for text in ("0003", "2113"):
+            self.assertIsNone(codecs.validate_value(parameter, text))
+        for text in ("0020", "0200", "3000"):
+            self.assertIsNotNone(codecs.validate_value(parameter, text))
+        self.assertFalse(parameter["change_while_running"])
 
     def test_en600_documented_addresses_and_sizes(self):
         v5 = CATALOG["en600_v5"]

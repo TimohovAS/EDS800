@@ -14,14 +14,17 @@ the interface language.
 from __future__ import annotations
 
 import re
+import math
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping
 
 # Placeholders shown in the value column when a value cannot be represented.
 READ_ERROR = "Error"
 BCD_ERROR = "BCD Error"
 CODE_ERROR = "Code Error"
-ERROR_TEXTS = frozenset({READ_ERROR, BCD_ERROR, CODE_ERROR})
+SCALE_ERROR = "Scale unknown"
+ERROR_TEXTS = frozenset({READ_ERROR, BCD_ERROR, CODE_ERROR, SCALE_ERROR})
 
 REGISTER_MASK = 0xFFFF
 FUNCTION_CODE_PATTERN = re.compile(r"F?(\d{1,2})(?:\.(\d{1,2}))?", re.IGNORECASE)
@@ -41,6 +44,86 @@ class CodecError(ValueError):
     def __init__(self, key: str, **params: Any):
         self.problem = Problem(key, params)
         super().__init__(key)
+
+
+def version_number(raw: Any) -> int:
+    """Decode panel uXX.XX without silently choosing decimal over BCD.
+
+    For the reported functional version 37.44, decimal 3744 is not valid BCD,
+    while BCD 0x3744 exceeds four decimal digits. Ambiguous encodings stop
+    revision-dependent writes instead of selecting an arbitrary layout.
+    """
+    if type(raw) is not int or not 0 <= raw <= 65535:
+        raise ValueError("Invalid version register")
+    candidates = {raw} if raw <= 9999 else set()
+    digits = [(raw >> shift) & 15 for shift in (12, 8, 4, 0)]
+    if max(digits) <= 9:
+        candidates.add(sum(digit * 10 ** (3 - i) for i, digit in enumerate(digits)))
+    if len(candidates) != 1:
+        raise ValueError("Ambiguous version register")
+    return candidates.pop()
+
+
+def context_codes(parameter: Mapping[str, Any]) -> tuple[str, ...]:
+    codes = [parameter.get(field) for field in ("scale_from", "unit_from", "variants_from")]
+    codes.extend(guard["code"] for guard in parameter.get("write_guards", ()))
+    return tuple(dict.fromkeys(code for code in codes if code))
+
+
+def resolve_parameter(parameter: Mapping[str, Any], values: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Resolve an engineering scale from a selector actually read from the drive.
+
+    Never substitute the factory default: the keypad may have changed it.
+    The original profile remains immutable; write targets carry their resolved
+    selector so the transport can check it again against the live drive.
+    """
+    providers = context_codes(parameter)
+    if not providers:
+        return parameter
+    resolved = dict(parameter)
+    for provider in providers:
+        if type(values.get(provider)) is not int:
+            raise CodecError("valid.scale_unknown", code=provider)
+    provider = parameter.get("variants_from")
+    if provider:
+        value = values[provider]
+        if parameter.get("variants_decoder") == "version":
+            try:
+                value = version_number(value)
+            except ValueError:
+                raise CodecError("valid.scale_unknown", code=provider) from None
+        variant = next((v for v in parameter["variants"]
+                        if v["minimum"] <= value <= v.get("maximum", 65535)), None)
+        if not variant or variant.get("unsupported"):
+            raise CodecError("valid.context_unsupported", code=provider)
+        resolved.update(variant["fields"])
+        resolved["_variant_fields"] = tuple(variant["fields"])
+    provider = parameter.get("scale_from")
+    if provider:
+        value = values[provider]
+        if str(value) not in parameter["scale_values"]:
+            raise CodecError("valid.scale_unknown", code=provider)
+        scale = parameter["scale_values"][str(value)]
+        resolved.update(scale=scale, minimum=parameter.get("minimum_raw", 0) / scale,
+                        maximum=parameter["maximum_raw"] / scale, _scale_resolved=value)
+    provider = parameter.get("unit_from")
+    if provider:
+        value = values[provider]
+        if str(value) not in parameter["unit_values"]:
+            raise CodecError("valid.scale_unknown", code=provider)
+        resolved["unit"] = parameter["unit_values"][str(value)]
+    for guard in parameter.get("write_guards", ()):
+        if values[guard["code"]] not in guard["allowed_values"]:
+            raise CodecError("valid.context_unsupported", code=guard["code"])
+    resolved["_resolved_context"] = {code: values[code] for code in providers}
+    return resolved
+
+
+def scale_problem(parameter: Mapping[str, Any]) -> Problem | None:
+    providers = context_codes(parameter)
+    if providers and "_resolved_context" not in parameter:
+        return Problem("valid.scale_unknown", {"code": providers[0]})
+    return None
 
 
 UNCONSTRAINED_DIGIT = "*"
@@ -68,13 +151,33 @@ def digit_limit_problem(text: str, parameter: Mapping[str, Any]) -> Problem | No
                 return Problem("valid.digit_limits", {"pattern": limits})
         except ValueError:
             return Problem("valid.digit_limits", {"pattern": limits})
+    minimums = parameter.get("digit_minimums")
+    if minimums:
+        for digit, minimum in zip(text, minimums):
+            if minimum != UNCONSTRAINED_DIGIT and int(digit, 16) < int(minimum, 16):
+                return Problem("valid.digit_minimums", {"pattern": minimums})
     return None
 
 
-def register_problem(raw_value: int) -> Problem | None:
-    """A parameter is one 16-bit holding register - nothing wider fits."""
-    if not 0 <= raw_value <= REGISTER_MASK:
-        return Problem("valid.register_range", {"maximum": REGISTER_MASK})
+def raw_maximum(parameter: Mapping[str, Any]) -> int:
+    """Largest packed value in the parameter's holding registers."""
+    bits = parameter.get("data_bits", 16 * parameter.get("register_count", 1))
+    return (1 << bits) - 1
+
+
+def numeric_raw(raw: Any, parameter: Mapping[str, Any]) -> int:
+    """Interpret a packed integer using its documented sign and width."""
+    value = int(raw)
+    bits = parameter.get("data_bits", 16 * parameter.get("register_count", 1))
+    if parameter.get("signed") and value >= (1 << (bits - 1)):
+        value -= 1 << bits
+    return value
+
+
+def register_problem(raw_value: int, parameter: Mapping[str, Any] | None = None) -> Problem | None:
+    maximum = raw_maximum(parameter or {})
+    if not 0 <= raw_value <= maximum:
+        return Problem("valid.register_range", {"maximum": maximum})
     return None
 
 
@@ -99,6 +202,7 @@ class NumericCodec(Codec):
     name = "numeric"
 
     def format(self, raw, parameter):
+        raw = numeric_raw(raw, parameter)
         scale = parameter["scale"]
         if scale == 1:
             value = int(raw)
@@ -113,14 +217,19 @@ class NumericCodec(Codec):
 
     def encode(self, text, parameter):
         try:
-            return int(round(float(text) * parameter["scale"]))
-        except (TypeError, ValueError):
+            raw = int(round(Decimal(text) * Decimal(str(parameter["scale"]))))
+            if raw < 0 and parameter.get("signed"):
+                raw += 1 << parameter.get("data_bits", 16 * parameter.get("register_count", 1))
+            return raw
+        except (TypeError, ValueError, OverflowError, InvalidOperation):
             raise CodecError("error.invalid_value", value=text) from None
 
     def validate(self, text, parameter):
         try:
             number = float(text)
         except ValueError:
+            return Problem("valid.number")
+        if not math.isfinite(number):
             return Problem("valid.number")
         minimum, maximum = limits(parameter)
         if minimum is not None and maximum is not None and not minimum <= number <= maximum:
@@ -133,10 +242,41 @@ class NumericCodec(Codec):
                     "unit": f" {unit}" if unit else "",
                 },
             )
+        allowed = parameter.get("allowed_values")
+        if allowed is not None and number not in allowed:
+            return Problem("valid.options", {"options": ", ".join(map(str, allowed))})
+        if parameter.get("data_bits"):
+            scaled = Decimal(text) * Decimal(str(parameter["scale"]))
+            if scaled != scaled.to_integral_value():
+                return Problem("valid.resolution", {"step": f"{1 / parameter['scale']:g}"})
         # Some fields are plain decimals whose digits each select a setting.
         if parameter.get("digit_limits"):
             return digit_limit_problem(text, parameter)
         return None
+
+
+class TextCodec(Codec):
+    """Read-only ASCII identification strings, two characters per register."""
+
+    name = "text"
+
+    def format(self, raw, parameter):
+        data = int(raw).to_bytes(2 * parameter["register_count"], "big")
+        return data.decode("ascii", errors="replace").rstrip("\x00 ")
+
+    def encode(self, text, parameter):
+        raise CodecError("valid.read_only")
+
+    def validate(self, text, parameter):
+        return Problem("valid.read_only")
+
+
+class VersionCodec(TextCodec):
+    name = "version"
+
+    def format(self, raw, parameter):
+        version = version_number(raw)
+        return f"u{version // 100:02}.{version % 100:02}"
 
 
 class BcdCodec(Codec):
@@ -146,6 +286,8 @@ class BcdCodec(Codec):
 
     def format(self, raw, parameter):
         value = int(raw) & REGISTER_MASK
+        if parameter.get("reject_high_bits") and value >= 1 << (4 * parameter["digits"]):
+            return BCD_ERROR
         digits = [
             (value >> shift) & 0x0F
             for shift in range((parameter["digits"] - 1) * 4, -1, -4)
@@ -176,19 +318,24 @@ class HexCodec(Codec):
 
     name = "hex"
 
+    @staticmethod
+    def normalized(text):
+        return str(text).strip().upper().removeprefix("H.").strip().removesuffix("H")
+
     def format(self, raw, parameter):
         value = int(raw) & REGISTER_MASK
         suffix = "H" if parameter.get("hex_suffix") else ""
-        return f"{value:0{parameter['digits']}X}{suffix}"
+        prefix = "H." if parameter.get("hex_prefix") else ""
+        return f"{prefix}{value:0{parameter['digits']}X}{suffix}"
 
     def encode(self, text, parameter):
         try:
-            return int(text.upper().removesuffix("H"), 16)
+            return int(self.normalized(text), 16)
         except (AttributeError, TypeError, ValueError):
             raise CodecError("error.invalid_value", value=text) from None
 
     def validate(self, text, parameter):
-        normalized = text.upper().removesuffix("H")
+        normalized = self.normalized(text)
         expected = parameter["digits"]
         allowed = parameter["digit_chars"]
         if len(normalized) != expected or any(char not in allowed for char in normalized):
@@ -244,7 +391,7 @@ def register(codec: Codec) -> Codec:
     return codec
 
 
-for _codec in (NumericCodec(), BcdCodec(), HexCodec(), FunctionCodeCodec()):
+for _codec in (NumericCodec(), BcdCodec(), HexCodec(), FunctionCodeCodec(), TextCodec(), VersionCodec()):
     register(_codec)
 
 
@@ -278,6 +425,8 @@ def format_value(raw: Any, parameter: Mapping[str, Any]) -> str:
     """Render a register for the table; never raises."""
     if raw == "":
         return ""
+    if scale_problem(parameter):
+        return SCALE_ERROR
     try:
         return codec_for(parameter).format(raw, parameter)
     except (KeyError, TypeError, ValueError):
@@ -285,7 +434,10 @@ def format_value(raw: Any, parameter: Mapping[str, Any]) -> str:
 
 
 def encode_value(parameter: Mapping[str, Any], text: str) -> int:
-    """Convert an edited cell into one 16-bit register."""
+    """Convert an edited cell into a packed unsigned register value."""
+    problem = scale_problem(parameter)
+    if problem:
+        raise CodecError(problem.key, **problem.params)
     return codec_for(parameter).encode(str(text).strip(), parameter)
 
 
@@ -293,13 +445,16 @@ def validate_value(parameter: Mapping[str, Any], text: str) -> Problem | None:
     """Check an edited cell against the parameter definition."""
     if parameter.get("read_only"):
         return Problem("valid.read_only")
+    problem = scale_problem(parameter)
+    if problem:
+        return problem
     text = str(text).strip()
     codec = codec_for(parameter)
     problem = codec.validate(text, parameter)
     if problem is not None:
         return problem
-    # Whatever the encoding says, the result has to fit one holding register.
+    # Whatever the encoding says, the result must fit its holding registers.
     try:
-        return register_problem(codec.encode(text, parameter))
+        return register_problem(codec.encode(text, parameter), parameter)
     except CodecError as exc:
         return exc.problem

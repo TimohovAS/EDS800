@@ -87,10 +87,13 @@ class TranslatorTests(unittest.TestCase):
 
     def test_every_message_formats_in_every_language(self):
         samples = {
+            "time": "12:34:56",
+            "bit": 31,
             "model": "EN600",
             "parameters": "651",
             "groups": "26",
             "version": "2.3.0",
+            "size": "12.3",
             "group": "F05",
             "page": 57,
             "value": "5",
@@ -124,6 +127,8 @@ class TranslatorTests(unittest.TestCase):
             "chars": "0123456789",
             "profile": "eds800",
             "pattern": "2112",
+            "options": "0, 1, 3",
+            "step": "0.01",
         }
         for language in TRANSLATIONS:
             translator = Translator(language)

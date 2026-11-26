@@ -1,0 +1,126 @@
+{
+  "source": "EDS800 Series Service Manual V3.0-A4, §6.11 and Table 7-1",
+  "source_url": "https://thanglongautomation.com/upload/files/ENC-EDS800%20Manual.pdf",
+  "fields": {
+    "Fd.00": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "Fd.01": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "Fd.02": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "Fd.03": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "Fd.04": {
+      "kind": "code",
+      "table": "faults"
+    },
+    "Fd.05": {
+      "kind": "code",
+      "table": "faults"
+    }
+  },
+  "tables": {
+    "faults": {
+      "1": {
+        "en": "E001 · Overcurrent during acceleration",
+        "ru": "E001 · Сверхток при разгоне"
+      },
+      "2": {
+        "en": "E002 · Overcurrent during deceleration",
+        "ru": "E002 · Сверхток при замедлении"
+      },
+      "3": {
+        "en": "E003 · Overcurrent at constant speed",
+        "ru": "E003 · Сверхток на установившейся частоте"
+      },
+      "4": {
+        "en": "E004 · Overvoltage during acceleration",
+        "ru": "E004 · Перенапряжение при разгоне"
+      },
+      "5": {
+        "en": "E005 · Overvoltage during deceleration",
+        "ru": "E005 · Перенапряжение при замедлении"
+      },
+      "6": {
+        "en": "E006 · Overvoltage at constant speed",
+        "ru": "E006 · Перенапряжение на установившейся частоте"
+      },
+      "7": {
+        "en": "E007 · Control power supply overvoltage",
+        "ru": "E007 · Перенапряжение питания цепей управления"
+      },
+      "8": {
+        "en": "E008 · Drive overload",
+        "ru": "E008 · Перегрузка преобразователя"
+      },
+      "9": {
+        "en": "E009 · Motor overload",
+        "ru": "E009 · Перегрузка двигателя"
+      },
+      "10": {
+        "en": "E010 · Drive overheating",
+        "ru": "E010 · Перегрев преобразователя"
+      },
+      "11": {
+        "en": "E011 · Reserved",
+        "ru": "E011 · Резерв"
+      },
+      "12": {
+        "en": "E012 · Reserved",
+        "ru": "E012 · Резерв"
+      },
+      "13": {
+        "en": "E013 · Inverter module protection",
+        "ru": "E013 · Срабатывание защиты силового модуля"
+      },
+      "14": {
+        "en": "E014 · External fault",
+        "ru": "E014 · Внешняя авария"
+      },
+      "15": {
+        "en": "E015 · Current sensing circuit fault",
+        "ru": "E015 · Неисправность цепи измерения тока"
+      },
+      "16": {
+        "en": "E016 · RS-485 communication fault",
+        "ru": "E016 · Ошибка связи RS-485"
+      },
+      "17": {
+        "en": "E017 · PID feedback loss",
+        "ru": "E017 · Потеря обратной связи ПИД"
+      },
+      "18": {
+        "en": "E018 · Reserved",
+        "ru": "E018 · Резерв"
+      },
+      "19": {
+        "en": "E019 · Undervoltage",
+        "ru": "E019 · Пониженное напряжение"
+      },
+      "20": {
+        "en": "E020 · System interference",
+        "ru": "E020 · Системная ошибка из-за помех"
+      },
+      "21": {
+        "en": "E021 · Reserved",
+        "ru": "E021 · Резерв"
+      },
+      "22": {
+        "en": "E022 · Reserved",
+        "ru": "E022 · Резерв"
+      },
+      "23": {
+        "en": "E023 · EEPROM read/write fault",
+        "ru": "E023 · Ошибка чтения или записи EEPROM"
+      }
+    }
+  }
+}

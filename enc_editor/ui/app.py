@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import tkinter as tk
 import webbrowser
@@ -20,13 +21,19 @@ import serial.tools.list_ports
 import tksheet
 from pymodbus.exceptions import ModbusException
 
-from .. import VERSION, detection
+from .. import VERSION, codecs, connection, detection, diagnostics, updates
 from ..catalog import Catalog, CatalogError, load_catalog
-from ..codecs import Problem
+from ..codecs import CodecError, Problem, READ_ERROR
 from ..i18n import LANGUAGES, Translator
 from ..session import ALL_GROUPS, FILTERS, Session, parse_settings_file
-from ..transport import LinkError, ModbusLink, TaskCancelled
+from ..transport import LinkError, TaskCancelled, create_link
+from ..fc_protocol import FCProtocolError
 from .theme import FONT, SMALL_FONT, THEMES, apply_theme, sheet_options
+from .diagnostics import DiagnosticsWindow
+from .connection import ConnectionDialog
+from .icons import toolbar_icon
+from .tooltip import Tooltip
+from .updates import UpdatesDialog
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +45,7 @@ COLUMN_KEYS = (
     "column.unit",
     "column.default",
     "column.range",
+    "column.decoded",
 )
 
 
@@ -45,11 +53,11 @@ class InverterParameterEditor:
     """Tk front end for one inverter at a time."""
 
     VERSION = VERSION
-    COLUMN_WIDTHS = (80, 350, 100, 70, 125, 340)
+    COLUMN_WIDTHS = (110, 350, 100, 70, 125, 340, 390)
     VALUE_COLUMN = 2
     DEFAULT_COLUMN = 4
 
-    def __init__(self, root, catalog: Catalog | None = None):
+    def __init__(self, root, catalog: Catalog | None = None, *, show_initial_connection=True):
         self.root = root
         self.preferences = self._load_preferences()
         self.t = Translator(self.preferences.get("language"))
@@ -64,17 +72,21 @@ class InverterParameterEditor:
         self._missing_profile = stored_profile if profile is None and stored_profile else None
         profile = profile or next(iter(self.catalog))
         self.session = Session(profile)
+        self._link_overrides = connection.restore_overrides(
+            self.catalog, self.preferences.get("link_overrides")
+        )
 
         # Tk variables
-        self.selected_profile_label = tk.StringVar(value=profile.label(self.t.language))
-        self.selected_port = tk.StringVar()
-        self.selected_device_id = tk.IntVar(value=profile.link.device_id)
-        self.selected_group = tk.StringVar(value=ALL_GROUPS)
-        self.search_text = tk.StringVar()
-        self.row_filter = tk.StringVar(value=self.t(f"filter.{FILTERS[0]}"))
-        self.status_text = tk.StringVar(value=self.t("status.ready"))
-        self.link_text = tk.StringVar(value=self.t("link.idle"))
-        self.counts_text = tk.StringVar(value="")
+        self.selected_manufacturer = tk.StringVar(root, value=profile.manufacturer)
+        self.selected_profile_label = tk.StringVar(root, value=profile.label(self.t.language))
+        self.selected_port = tk.StringVar(root)
+        self.selected_device_id = tk.IntVar(root, value=profile.link.device_id)
+        self.selected_group = tk.StringVar(root, value=ALL_GROUPS)
+        self.search_text = tk.StringVar(root)
+        self.row_filter = tk.StringVar(root, value=self.t(f"filter.{FILTERS[0]}"))
+        self.status_text = tk.StringVar(root, value=self.t("status.ready"))
+        self.link_text = tk.StringVar(root, value=self.t("link.idle"))
+        self.counts_text = tk.StringVar(root, value="")
 
         # State
         self.rows: list[dict] = []
@@ -90,7 +102,30 @@ class InverterParameterEditor:
         self._language_buttons: dict[str, ttk.Button] = {}
         self._filter_keys: dict[str, str] = {}
         self._profile_keys: dict[str, str] = {}
+        self._manufacturer_profiles = {profile.manufacturer: profile.key}
         self.text_buttons: dict[str, ttk.Button] = {}
+        self.file_buttons: dict[str, ttk.Button] = {}
+        self.file_tooltips: dict[str, Tooltip] = {}
+        self._header_images = {}
+        self.diagnostics_window = None
+        self.connection_dialog = None
+        self.updates_dialog = None
+        self.update_scope = updates.installed_scope()
+        self.auto_check_updates = self.preferences.get("auto_check_updates", True) is not False
+        self._update_check_job = None
+        self._resetting = False
+        self._ports = []
+        self._offline = bool(self.preferences.get("offline", False))
+        # Earlier versions saved a collapsed default, not necessarily a choice.
+        # Start expanded on upgrade; remember only an explicit visibility choice.
+        self._details_visibility_explicit = bool(self.preferences.get("details_visibility_explicit", False))
+        self._details_collapsed = (bool(self.preferences.get("details_collapsed", False))
+                                   if self._details_visibility_explicit else False)
+        try:
+            self._details_height = max(100, min(500, int(self.preferences.get("details_height", 180))))
+        except (TypeError, ValueError):
+            self._details_height = 180
+        self._toolbar_wrapped = None
 
         self._build_ui()
         self.apply_theme()
@@ -114,6 +149,10 @@ class InverterParameterEditor:
             )
 
         root.protocol("WM_DELETE_WINDOW", self._on_close)
+        if show_initial_connection and not stored_profile:
+            root.after_idle(self.open_connection_settings)
+        if self.update_scope and self.auto_check_updates:
+            self._update_check_job = root.after(8000, self._check_updates_at_startup)
 
     # ------------------------------------------------------------------
     # Shorthand
@@ -126,22 +165,80 @@ class InverterParameterEditor:
     def language(self) -> str:
         return self.t.language
 
+    @property
+    def connection_settings(self):
+        return connection.settings_for(self.profile, self._link_overrides.get(self.profile.key))
+
+    @property
+    def trip_reset_supported(self):
+        return bool(self.profile.diagnostics.get("reset")) and self.connection_settings.protocol == "modbus_rtu"
+
+    def open_connection_settings(self):
+        if self._busy or self.diagnostics_window:
+            return
+        if self.connection_dialog:
+            self.connection_dialog.window.lift()
+            return
+        self.connection_dialog = ConnectionDialog(self)
+
+    def apply_connection_settings(self, settings):
+        if self._busy:
+            return
+        validated = connection.settings_for(self.profile, connection.serial_payload(settings))
+        changed = validated != self.connection_settings
+        self._link_overrides[self.profile.key] = connection.serial_payload(validated)
+        if changed:
+            self.session.use_profile(self.profile)
+        if self.diagnostics_window:
+            self.diagnostics_window.close()
+        self.update_table()
+        self._on_sheet_select()
+        self._update_link_indicator()
+        self._save_preferences()
+        self._set_status("connection.applied")
+
+    def apply_connection_configuration(self, profile, port, device_id, settings, *, offline=False):
+        """Commit a dialog draft; never open a port or change drive parameters."""
+        if self._busy:
+            return
+        settings = connection.settings_for(profile, connection.serial_payload(settings))
+        if not 1 <= device_id <= settings.maximum_device_id:
+            raise ValueError("invalid device address")
+        changed = (profile.key != self.profile.key or port != self.selected_port.get()
+                   or str(device_id) != str(self.root.getvar(self.selected_device_id._name))
+                   or settings != self.connection_settings)
+        self._link_overrides[profile.key] = connection.serial_payload(settings)
+        if profile.key != self.profile.key:
+            self._activate_profile(profile)
+        elif changed:
+            self.session.use_profile(profile)
+        self.selected_port.set(port)
+        self.selected_device_id.set(device_id)
+        self._offline = offline
+        self.update_table()
+        self._update_titles()
+        self._save_preferences()
+        self._set_status("connection.offline_status" if offline else "connection.applied")
+
     # ------------------------------------------------------------------
     # Layout
     # ------------------------------------------------------------------
     def _build_ui(self):
         self.root.title(f"{self.t('app.name')} {self.VERSION}")
-        self.root.geometry(self.preferences.get("geometry", "1340x820"))
-        self.root.minsize(1180, 620)
+        # A saved desktop geometry must still fit a laptop screen.
+        screen_width = max(800, self.root.winfo_screenwidth() - 40)
+        screen_height = max(480, self.root.winfo_screenheight() - 100)
+        match = re.fullmatch(r"(\d+)x(\d+)(?:[+-]\d+[+-]\d+)?", str(self.preferences.get("geometry", "1340x780")))
+        width, height = (map(int, match.groups()) if match else (1340, 780))
+        self.root.geometry(f"{min(width, screen_width)}x{min(height, screen_height)}")
+        self.root.minsize(min(1000, screen_width), min(520, screen_height))
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
         self._build_header()
 
-        body = ttk.Frame(self.root, style="App.TFrame")
-        body.grid(row=1, column=0, sticky="nsew", padx=14, pady=(12, 8))
-        body.grid_rowconfigure(0, weight=1)
-        body.grid_columnconfigure(1, weight=1)
+        body = ttk.Panedwindow(self.root, orient="horizontal")
+        body.grid(row=1, column=0, sticky="nsew", padx=12, pady=(8, 6))
 
         self._build_sidebar(body)
         self._build_workspace(body)
@@ -151,16 +248,37 @@ class InverterParameterEditor:
     def _build_header(self):
         header = ttk.Frame(self.root, style="Brand.TFrame")
         header.grid(row=0, column=0, sticky="ew")
-        header.grid_columnconfigure(1, weight=1)
+        header.grid_columnconfigure(0, weight=1)
 
         title_box = ttk.Frame(header, style="Brand.TFrame")
-        title_box.grid(row=0, column=0, sticky="w", padx=18, pady=14)
-        ttk.Label(title_box, text=self.t("app.name"), style="BrandTitle.TLabel").pack(anchor="w")
-        self.header_subtitle = ttk.Label(title_box, text="", style="BrandSub.TLabel")
-        self.header_subtitle.pack(anchor="w", pady=(2, 0))
+        title_box.grid(row=0, column=0, sticky="ew", padx=18, pady=8)
+        self.header_title = ttk.Label(title_box, style="BrandTitle.TLabel", width=1)
+        self.header_subtitle = ttk.Label(title_box, style="BrandSub.TLabel", width=1)
+        for label, padding in ((self.header_title, 0), (self.header_subtitle, (2, 0))):
+            label.pack(fill="x", pady=padding)
+            label.bind("<Configure>", lambda event: event.widget.configure(wraplength=event.width))
 
         actions = ttk.Frame(header, style="Brand.TFrame")
-        actions.grid(row=0, column=2, sticky="e", padx=18)
+        actions.grid(row=0, column=1, sticky="e", padx=18)
+
+        icons = ttk.Frame(actions, style="Brand.TFrame")
+        icons.pack(side="left", padx=(0, 18))
+        self.connection_button = ttk.Button(
+            icons, style="BrandIcon.TButton", command=self.open_connection_settings, compound="image"
+        )
+        self.connection_button.pack(side="left")
+        self._action_widgets.append(self.connection_button)
+        self.connection_tooltip = Tooltip(
+            self.connection_button,
+            lambda: f"{self.t('connection.title')}\n{self.link_text.get()}",
+        )
+
+        for name, command in (("open", self.load_from_file), ("save", self.save_to_file)):
+            button = ttk.Button(icons, style="BrandIcon.TButton", command=command, compound="image")
+            button.pack(side="left", padx=(4, 0))
+            self.file_buttons[name] = button
+            self._action_widgets.append(button)
+            self.file_tooltips[name] = Tooltip(button, lambda name=name: self._file_hint(name))
 
         languages = ttk.Frame(actions, style="Brand.TFrame")
         languages.pack(side="left", padx=(0, 14))
@@ -176,78 +294,24 @@ class InverterParameterEditor:
             self._language_buttons[code] = button
 
         self.manual_button = ttk.Button(
-            actions, text="", style="Brand.TButton", command=self.open_manual
+            actions, style="BrandIcon.TButton", command=self.open_manual, compound="image"
         )
         self.manual_button.pack(side="left", padx=(0, 8))
+        self.manual_tooltip = Tooltip(self.manual_button, lambda: self.t("action.manual"))
+        self.updates_button = ttk.Button(
+            actions, style="BrandIcon.TButton", command=self.open_updates, compound="image"
+        )
+        self.updates_button.pack(side="left", padx=(0, 8))
+        self.updates_tooltip = Tooltip(self.updates_button, lambda: self.t("updates.title"))
         self.theme_button = ttk.Button(
-            actions, text="", style="Brand.TButton", command=self.toggle_theme
+            actions, style="BrandIcon.TButton", command=self.toggle_theme, compound="image"
         )
         self.theme_button.pack(side="left")
+        self.theme_tooltip = Tooltip(self.theme_button, lambda: self.t(f"action.{self._theme_action()}"))
 
     def _build_sidebar(self, parent):
-        sidebar = ttk.Frame(parent, style="App.TFrame", width=360)
-        sidebar.grid(row=0, column=0, sticky="ns", padx=(0, 14))
-        sidebar.grid_propagate(False)
-        sidebar.grid_rowconfigure(2, weight=1)
-        sidebar.grid_columnconfigure(0, weight=1)
-
-        # --- connection ----------------------------------------------------
-        card = ttk.Frame(sidebar, style="Card.TFrame", padding=(14, 12, 14, 14))
-        card.grid(row=0, column=0, sticky="ew")
-        card.grid_columnconfigure(0, weight=1)
-
-        self.connection_label = ttk.Label(card, text="", style="Section.TLabel")
-        self.connection_label.grid(row=0, column=0, columnspan=2, sticky="w")
-
-        self.model_label = ttk.Label(card, text="", style="Field.TLabel")
-        self.model_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 3))
-        self.profile_combobox = ttk.Combobox(
-            card, textvariable=self.selected_profile_label, state="readonly"
-        )
-        self.profile_combobox.grid(row=2, column=0, columnspan=2, sticky="ew")
-        self.profile_combobox.bind("<<ComboboxSelected>>", self.change_profile)
-
-        self.port_label = ttk.Label(card, text="", style="Field.TLabel")
-        self.port_label.grid(row=3, column=0, columnspan=2, sticky="w", pady=(12, 3))
-        self.port_combobox = ttk.Combobox(card, textvariable=self.selected_port, state="readonly")
-        self.port_combobox.grid(row=4, column=0, sticky="ew")
-        refresh = ttk.Button(card, text="↻", style="Icon.TButton", width=3, command=self.refresh_ports)
-        refresh.grid(row=4, column=1, sticky="e", padx=(6, 0))
-
-        self.device_id_label = ttk.Label(card, text="", style="Field.TLabel")
-        self.device_id_label.grid(row=5, column=0, sticky="w", pady=(12, 3))
-        id_row = ttk.Frame(card, style="Card.TFrame")
-        id_row.grid(row=6, column=0, columnspan=2, sticky="ew")
-        self.device_id_spinbox = ttk.Spinbox(
-            id_row, from_=1, to=247, width=6, textvariable=self.selected_device_id
-        )
-        self.device_id_spinbox.pack(side="left")
-        self.link_settings_label = ttk.Label(id_row, text="", style="Mono.TLabel")
-        self.link_settings_label.pack(side="left", padx=(10, 0))
-
-        self.test_button = ttk.Button(card, text="", command=self.test_connection)
-        self.test_button.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(14, 0))
-        self._action_widgets.append(self.test_button)
-
-        # --- settings file --------------------------------------------------
-        files = ttk.Frame(sidebar, style="Card.TFrame", padding=(14, 12, 14, 14))
-        files.grid(row=1, column=0, sticky="ew", pady=(14, 0))
-        files.grid_columnconfigure(0, weight=1, uniform="file")
-        files.grid_columnconfigure(1, weight=1, uniform="file")
-
-        self.files_label = ttk.Label(files, text="", style="Section.TLabel")
-        self.files_label.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
-        for column, (key, command) in enumerate(
-            (("action.load", self.load_from_file), ("action.save", self.save_to_file))
-        ):
-            button = ttk.Button(files, text="", command=command)
-            button.grid(row=1, column=column, sticky="ew", padx=(0, 6) if column == 0 else (6, 0))
-            self._action_widgets.append(button)
-            self.text_buttons[key] = button
-
-        # --- groups ----------------------------------------------------------
-        groups = ttk.Frame(sidebar, style="Card.TFrame", padding=(14, 12, 8, 12))
-        groups.grid(row=2, column=0, sticky="nsew", pady=(14, 0))
+        groups = ttk.Frame(parent, style="Card.TFrame", padding=(12, 10, 6, 10), width=300)
+        parent.add(groups, weight=0)
         groups.grid_rowconfigure(1, weight=1)
         groups.grid_columnconfigure(0, weight=1)
 
@@ -256,8 +320,8 @@ class InverterParameterEditor:
         self.group_tree = ttk.Treeview(
             groups, style="Groups.Treeview", show="tree", columns=("count",), selectmode="browse"
         )
-        self.group_tree.column("#0", width=244, stretch=True)
-        self.group_tree.column("count", width=46, anchor="e", stretch=False)
+        self.group_tree.column("#0", width=230, minwidth=80, stretch=True)
+        self.group_tree.column("count", width=38, anchor="e", stretch=False)
         self.group_tree.grid(row=1, column=0, sticky="nsew")
         scrollbar = ttk.Scrollbar(groups, orient="vertical", command=self.group_tree.yview)
         scrollbar.grid(row=1, column=1, sticky="ns", padx=(4, 0))
@@ -266,7 +330,7 @@ class InverterParameterEditor:
 
     def _build_workspace(self, parent):
         workspace = ttk.Frame(parent, style="App.TFrame")
-        workspace.grid(row=0, column=1, sticky="nsew")
+        parent.add(workspace, weight=1)
         workspace.grid_rowconfigure(1, weight=1)
         workspace.grid_columnconfigure(0, weight=1)
 
@@ -289,6 +353,9 @@ class InverterParameterEditor:
 
         buttons = ttk.Frame(toolbar, style="Toolbar.TFrame")
         buttons.grid(row=0, column=3, sticky="e")
+        self.toolbar = toolbar
+        self.toolbar_buttons = buttons
+        toolbar.bind("<Configure>", self._layout_toolbar)
         for key, command, style_name in (
             ("action.read_group", self.read_parameters, "Accent.TButton"),
             ("action.write_edited", self.save_changes, "TButton"),
@@ -300,8 +367,10 @@ class InverterParameterEditor:
             self._action_widgets.append(button)
             self.text_buttons[key] = button
 
+        self.workspace_panes = ttk.Panedwindow(workspace, orient="vertical")
+        self.workspace_panes.grid(row=1, column=0, sticky="nsew")
         self.sheet = tksheet.Sheet(
-            workspace,
+            self.workspace_panes,
             headers=[self.t(key) for key in COLUMN_KEYS],
             show_x_scrollbar=True,
             show_y_scrollbar=True,
@@ -309,7 +378,7 @@ class InverterParameterEditor:
             empty_horizontal=0,
             empty_vertical=0,
         )
-        self.sheet.grid(row=1, column=0, sticky="nsew")
+        self.workspace_panes.add(self.sheet, weight=1)
         self.sheet.enable_bindings(
             (
                 "single_select",
@@ -325,25 +394,42 @@ class InverterParameterEditor:
         )
         self.sheet.set_column_widths(list(self.COLUMN_WIDTHS))
         self.sheet.align_columns(columns=[0, 2, 3, 4], align="center")
-        self.sheet.align_columns(columns=[1, 5], align="w")
-        self.sheet.readonly_columns(columns=[0, 1, 3, 4, 5])
+        self.sheet.align_columns(columns=[1, 5, 6], align="w")
+        self.sheet.readonly_columns(columns=[0, 1, 3, 4, 5, 6])
         self.sheet.bind("<<SheetModified>>", self._on_sheet_modified)
         self.sheet.bind("<<SheetSelect>>", self._on_sheet_select)
 
-        self._build_details(workspace)
+        self._build_details(self.workspace_panes)
+        self.workspace_panes.bind("<Configure>", self._position_details)
+        self.workspace_panes.bind("<ButtonRelease-1>", self._remember_details_size)
+
+    def _layout_toolbar(self, _event=None):
+        required = (self.search_entry.winfo_reqwidth() + self.filter_combobox.winfo_reqwidth()
+                    + self.toolbar_buttons.winfo_reqwidth() + 24)
+        wrapped = self.toolbar.winfo_width() < required
+        if wrapped != self._toolbar_wrapped:
+            self._toolbar_wrapped = wrapped
+            self.toolbar_buttons.grid_configure(
+                row=1 if wrapped else 0, column=0 if wrapped else 3,
+                columnspan=4 if wrapped else 1, sticky="e", pady=(6, 0) if wrapped else 0)
 
     def _build_details(self, parent):
-        details = ttk.Frame(parent, style="Card.TFrame", padding=(14, 10, 14, 12))
-        details.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        details = ttk.Frame(parent, style="Card.TFrame", padding=(10, 5))
+        parent.add(details, weight=0)
+        self.details_panel = details
         details.grid_columnconfigure(0, weight=1)
+        details.grid_rowconfigure(2, weight=1)
 
         head = ttk.Frame(details, style="Card.TFrame")
+        self.details_head = head
         head.grid(row=0, column=0, sticky="ew")
         head.grid_columnconfigure(1, weight=1)
-        self.details_title = ttk.Label(head, text="", style="Card.TLabel", font=FONT)
-        self.details_title.grid(row=0, column=0, sticky="w")
-        self.details_meta = ttk.Label(head, text="", style="Muted.TLabel")
-        self.details_meta.grid(row=0, column=1, sticky="e")
+        self.details_toggle = ttk.Button(head, command=self.toggle_details, style="Details.TButton", width=0)
+        self.details_toggle.grid(row=0, column=0, padx=(0, 6))
+        self.details_title = ttk.Label(head, text="", style="Card.TLabel", font=FONT, width=1)
+        self.details_title.grid(row=0, column=1, sticky="ew")
+        self.details_meta = ttk.Label(details, text="", style="Muted.TLabel", width=1)
+        self.details_meta.grid(row=1, column=0, sticky="ew")
 
         self.details_text = tk.Text(
             details,
@@ -356,20 +442,55 @@ class InverterParameterEditor:
             padx=0,
             pady=6,
         )
-        self.details_text.grid(row=1, column=0, sticky="ew")
+        self.details_text.grid(row=2, column=0, sticky="nsew")
         # Option lists run to several hundred characters, so the panel scrolls.
         self.details_scroll = ttk.Scrollbar(
             details, orient="vertical", command=self.details_text.yview
         )
-        self.details_scroll.grid(row=1, column=1, sticky="ns", padx=(6, 0))
+        self.details_scroll.grid(row=2, column=1, sticky="ns", padx=(6, 0))
         self.details_text.configure(yscrollcommand=self._on_details_scroll)
         self.details_text.bind("<MouseWheel>", self._on_details_wheel)
         self.details_text.configure(state="disabled")
+        self._sync_details_visibility()
+
+    def _sync_details_visibility(self):
+        label = self.t("details.show" if self._details_collapsed else "details.hide")
+        self.details_toggle.configure(text=f"{'▲' if self._details_collapsed else '▼'} {label}")
+        for widget in (self.details_meta, self.details_text):
+            widget.grid_remove() if self._details_collapsed else widget.grid()
+        if self._details_collapsed:
+            self.details_scroll.grid_remove()
+
+    def toggle_details(self):
+        if not self._details_collapsed:
+            self._remember_details_size()
+        self._details_collapsed = not self._details_collapsed
+        self._details_visibility_explicit = True
+        self._sync_details_visibility()
+        self.root.after_idle(self._position_details)
+        self._save_preferences()
+
+    def _position_details(self, _event=None):
+        height = self.workspace_panes.winfo_height()
+        if height > 100:
+            desired = (max(40, self.details_head.winfo_reqheight() + 10)
+                       if self._details_collapsed else self._details_height)
+            self.workspace_panes.sashpos(0, max(80, height - min(desired, height - 80)))
+
+    def _remember_details_size(self, _event=None):
+        if self._details_collapsed:
+            self._position_details()
+        else:
+            # Match _position_details: include the sash, and use its current
+            # position rather than the child height (which can lag until idle).
+            self._details_height = max(
+                100, self.workspace_panes.winfo_height() - self.workspace_panes.sashpos(0)
+            )
 
     def _on_details_scroll(self, first, last):
         """Hide the scrollbar while the whole text already fits."""
         self.details_scroll.set(first, last)
-        if float(first) <= 0.0 and float(last) >= 1.0:
+        if self._details_collapsed or (float(first) <= 0.0 and float(last) >= 1.0):
             self.details_scroll.grid_remove()
         else:
             self.details_scroll.grid()
@@ -385,17 +506,20 @@ class InverterParameterEditor:
 
         self.link_dot = tk.Label(bar, text="●", font=FONT)
         self.link_dot.grid(row=0, column=0, sticky="w")
-        ttk.Label(bar, textvariable=self.link_text, style="Status.TLabel").grid(
-            row=0, column=1, sticky="w", padx=(6, 0)
-        )
-        self.status_label = ttk.Label(bar, textvariable=self.status_text, style="StatusMuted.TLabel")
-        self.status_label.grid(row=0, column=2, sticky="w", padx=18)
+        self.status_label = ttk.Label(bar, textvariable=self.status_text, style="StatusMuted.TLabel", width=1)
+        self.status_label.grid(row=0, column=2, sticky="ew", padx=(10, 12))
+        Tooltip(self.status_label, self.status_text.get)
 
         self.progress = ttk.Progressbar(bar, mode="determinate", length=190)
         self.cancel_button = ttk.Button(bar, text="", style="Danger.TButton", command=self.cancel_task)
         ttk.Label(bar, textvariable=self.counts_text, style="StatusMuted.TLabel").grid(
             row=0, column=5, sticky="e"
         )
+        self.test_button = ttk.Button(bar, command=self.test_connection)
+        self.test_button.grid(row=0, column=6, padx=(14, 6))
+        self._action_widgets.append(self.test_button)
+        self.diagnostics_button = ttk.Button(bar, command=self.open_diagnostics)
+        self.diagnostics_button.grid(row=0, column=7)
 
     def _bind_shortcuts(self):
         self.root.bind("<F5>", lambda _e: self.read_parameters())
@@ -431,14 +555,42 @@ class InverterParameterEditor:
     # ------------------------------------------------------------------
     # Theme and language
     # ------------------------------------------------------------------
+    def _file_hint(self, name):
+        key = "file.open_hint" if name == "open" else (
+            "file.save_hint" if self._offline else "file.backup_hint")
+        return self.t(key)
+
+    def _theme_action(self):
+        return "theme_dark" if self.palette.name == "light" else "theme_light"
+
+    def _hide_header_tooltips(self):
+        for tooltip in (self.connection_tooltip, *self.file_tooltips.values(),
+                        self.manual_tooltip, self.updates_tooltip, self.theme_tooltip):
+            tooltip.hide()
+
+    def _refresh_header_icons(self):
+        self._hide_header_tooltips()
+        scale = max(1.0, self.root.winfo_fpixels("1i") / 96)
+        buttons = (
+            ("connection", self.connection_button),
+            *self.file_buttons.items(),
+            ("manual", self.manual_button),
+            ("updates", self.updates_button),
+            (self._theme_action(), self.theme_button),
+        )
+        for name, button in buttons:
+            normal = toolbar_icon(self.root, name, self.palette.brand_text, scale)
+            disabled = toolbar_icon(self.root, name, self.palette.brand_muted, scale)
+            self._header_images[name] = (normal, disabled)
+            button.configure(image=(normal, "disabled", disabled))
+
     def apply_theme(self):
         palette = self.palette
         apply_theme(self.root, self.style, palette)
+        self._refresh_header_icons()
         self.sheet.change_theme(palette.sheet_theme, redraw=False)
         self.sheet.set_options(redraw=False, **sheet_options(palette))
-        self.theme_button.configure(
-            text=self.t("action.theme_dark" if palette.name == "light" else "action.theme_light")
-        )
+        self.theme_button.configure(text=self.t(f"action.{self._theme_action()}"))
         self.link_dot.configure(background=palette.surface, foreground=palette.muted)
         self.details_text.configure(
             background=palette.surface, foreground=palette.muted, insertbackground=palette.text
@@ -451,6 +603,8 @@ class InverterParameterEditor:
         )
         self._refresh_row_styles()
         self._update_link_indicator()
+        if self.updates_dialog:
+            self.updates_dialog.refresh_appearance()
 
     def toggle_theme(self):
         self.palette = THEMES["dark" if self.palette.name == "light" else "light"]
@@ -466,6 +620,34 @@ class InverterParameterEditor:
         self._save_preferences()
         logger.info("Interface language: %s", self.t.language)
 
+    def open_updates(self, *, automatic=False):
+        self._cancel_startup_update_check()
+        if self.updates_dialog is None:
+            self.updates_dialog = UpdatesDialog(self)
+            if not automatic:
+                self.updates_dialog.show()
+            self.updates_dialog.check()
+        elif not automatic:
+            self.updates_dialog.show()
+
+    def _check_updates_at_startup(self):
+        self._update_check_job = None
+        if self._busy or self.connection_dialog or self.diagnostics_window:
+            self._update_check_job = self.root.after(2000, self._check_updates_at_startup)
+        else:
+            self.open_updates(automatic=True)
+
+    def _cancel_startup_update_check(self):
+        if self._update_check_job is not None:
+            self.root.after_cancel(self._update_check_job)
+            self._update_check_job = None
+
+    def set_auto_check_updates(self, enabled):
+        self.auto_check_updates = enabled
+        if not enabled:
+            self._cancel_startup_update_check()
+        self._save_preferences()
+
     def _apply_language(self):
         """Re-label every widget after a language change."""
         t = self.t
@@ -473,16 +655,19 @@ class InverterParameterEditor:
             button.configure(style="Accent.TButton" if code == t.language else "Brand.TButton")
 
         self.manual_button.configure(text=t("action.manual"))
-        self.theme_button.configure(
-            text=t("action.theme_dark" if self.palette.name == "light" else "action.theme_light")
-        )
-        self.connection_label.configure(text=t("sidebar.connection"))
-        self.model_label.configure(text=t("sidebar.model"))
-        self.port_label.configure(text=t("sidebar.port"))
-        self.device_id_label.configure(text=t("sidebar.device_id"))
+        self.updates_button.configure(text=t("updates.title"))
+        if self.updates_dialog:
+            self.updates_dialog.refresh_appearance()
+        self.theme_button.configure(text=t(f"action.{self._theme_action()}"))
+        self.connection_button.configure(text=t("connection.title"))
+        self._hide_header_tooltips()
         self.groups_label.configure(text=t("sidebar.groups"))
-        self.files_label.configure(text=t("sidebar.files"))
+        self._sync_details_visibility()
+        for name, button in self.file_buttons.items():
+            button.configure(text=t("action.load" if name == "open" else "action.save"))
         self.test_button.configure(text=t("action.test_link"))
+        self.diagnostics_button.configure(text=t("diag.title"))
+        self._update_diagnostics_button()
         self.cancel_button.configure(text=t("action.cancel"))
         for key, button in self.text_buttons.items():
             button.configure(text=t(key))
@@ -496,9 +681,7 @@ class InverterParameterEditor:
         self.filter_combobox["values"] = list(self._filter_keys)
         self.row_filter.set(t(f"filter.{current_filter}"))
 
-        self._profile_keys = self.catalog.labels(t.language)
-        self.profile_combobox["values"] = list(self._profile_keys)
-        self.selected_profile_label.set(self.profile.label(t.language))
+        self._refresh_profile_choices()
 
         self.sheet.headers([t(key) for key in COLUMN_KEYS])
         self._populate_groups()
@@ -517,10 +700,32 @@ class InverterParameterEditor:
 
         message, level, params = self._status
         self._set_status(message, level, **params)
+        self.root.after_idle(self._layout_toolbar)
 
     # ------------------------------------------------------------------
     # Profile, ports and groups
     # ------------------------------------------------------------------
+    def _refresh_profile_choices(self):
+        self.selected_manufacturer.set(self.profile.manufacturer)
+        self._profile_keys = self.catalog.labels(self.language, self.profile.manufacturer)
+        self.selected_profile_label.set(self.profile.label(self.language))
+
+    def change_manufacturer(self, event=None):
+        if self._busy:
+            self.selected_manufacturer.set(self.profile.manufacturer)
+            self._set_status("status.wait_operation", "warning")
+            return
+        manufacturer = self.selected_manufacturer.get()
+        choices = self.catalog.labels(self.language, manufacturer)
+        if not choices:
+            self.selected_manufacturer.set(self.profile.manufacturer)
+            return
+        key = self._manufacturer_profiles.get(manufacturer)
+        if key not in choices.values():
+            key = next(iter(choices.values()))
+        if key != self.profile.key:
+            self._activate_profile(self.catalog[key])
+
     def change_profile(self, event=None):
         """Switch parameter maps without carrying values between models."""
         if self._busy:
@@ -534,8 +739,16 @@ class InverterParameterEditor:
 
     def _activate_profile(self, profile, status=None, preserve_values=False, **status_params):
         """Apply one parameter map and drop values it does not know."""
+        old_settings = self.connection_settings
+        if self.connection_dialog:
+            self.connection_dialog.close()
+        if self.diagnostics_window:
+            self.diagnostics_window.close()
         self.session.use_profile(profile, preserve_values=preserve_values)
-        self.selected_profile_label.set(profile.label(self.language))
+        if preserve_values:
+            self._link_overrides[profile.key] = connection.serial_payload(old_settings)
+        self._manufacturer_profiles[profile.manufacturer] = profile.key
+        self._refresh_profile_choices()
         if not preserve_values:
             self.selected_device_id.set(profile.link.device_id)
             self.selected_group.set(ALL_GROUPS)
@@ -544,6 +757,7 @@ class InverterParameterEditor:
         self._populate_groups()
         self.update_table()
         self._update_titles()
+        self._update_diagnostics_button()
         if status:
             self._set_status(status, "info", **status_params)
         else:
@@ -552,14 +766,10 @@ class InverterParameterEditor:
 
     def refresh_ports(self, announce=True):
         """Refresh the list of available COM ports."""
-        ports = [port.device for port in serial.tools.list_ports.comports()]
-        current = self.selected_port.get()
-        self.port_combobox["values"] = ports
+        ports = self._ports = [port.device for port in serial.tools.list_ports.comports()]
         if ports:
-            self.selected_port.set(current if current in ports else ports[0])
             self._set_status(lambda n=len(ports): self.t.plural("status.ports_available", n))
         else:
-            self.selected_port.set("")
             self._set_status("status.no_ports", "warning")
             if announce:
                 messagebox.showwarning(
@@ -623,21 +833,36 @@ class InverterParameterEditor:
                 self.session.display(param),
                 self._unit(param),
                 self._default_display(param),
-                self._short_range(self.profile.range_text(param, self.language)),
+                self._short_range(self.profile.range_text(self._presentation_parameter(param), self.language)),
+                self._decoded(param),
             ]
             for param in self.rows
         ]
         self.sheet.set_sheet_data(self.data, reset_col_positions=False, redraw=False)
         self._refresh_row_styles()
         self._update_counts()
+        self._on_sheet_select()
+
+    def _decoded(self, parameter):
+        code = parameter["code"]
+        raw = READ_ERROR if code in self.session.failed else self.session.loaded.get(code)
+        return diagnostics.decode(self.profile.diagnostics, code, raw, self.t)
 
     def _text(self, parameter, field_name: str) -> str:
-        return self.profile.text(parameter, field_name, self.language)
+        return self.profile.text(self._presentation_parameter(parameter), field_name, self.language)
+
+    def _presentation_parameter(self, parameter):
+        try:
+            return self.session.effective_parameter(parameter)
+        except CodecError:
+            return parameter
 
     def _unit(self, parameter) -> str:
+        parameter = self._presentation_parameter(parameter)
         return self.t.unit(parameter.get("unit", ""))
 
     def _default_display(self, parameter) -> str:
+        parameter = self._presentation_parameter(parameter)
         if parameter.get("default"):
             return parameter["default"]
         return self._text(parameter, "default_note")
@@ -674,7 +899,7 @@ class InverterParameterEditor:
         readonly, edited, errors, nondefault = [], [], [], []
         for index, param in enumerate(self.rows):
             code = param["code"]
-            if param.get("read_only"):
+            if param.get("read_only") or self.session.context_problem(param):
                 readonly.append(index)
             if code in self.session.failed:
                 errors.append(index)
@@ -724,10 +949,14 @@ class InverterParameterEditor:
         self._show_details(self.rows[row])
 
     def _show_details(self, param):
+        param = self._presentation_parameter(param)
         t = self.t
-        writable = t("details.readonly" if param.get("read_only") else "details.writable")
+        context_problem = self.session.context_problem(param)
+        writable = t("details.readonly" if param.get("read_only") or context_problem else "details.writable")
         running = param.get("change_while_running")
         meta = [f"0x{param['address']:04X}", t("details.group", group=param["group"]), writable]
+        if "parameter_id" in param:
+            meta.insert(1, f"ID {param['parameter_id']}")
         if running is not None and not param.get("read_only"):
             meta.append(t("details.running_yes" if running else "details.running_no"))
         if param.get("manual_pdf_page"):
@@ -745,6 +974,14 @@ class InverterParameterEditor:
             f"{self.profile.range_text(param, self.language)}"
         )
         note = self._text(param, "note")
+        if context_problem:
+            body += "\n\n" + self._problem_text(context_problem)
+        decoded = self._decoded(param)
+        if decoded:
+            body += "\n\n" + t("column.decoded") + ":\n" + decoded.replace("; ", "\n")
+        help_text = self._text(param, "help")
+        if help_text:
+            body += "\n\n" + help_text
         if note:
             body += "\n\n" + t("details.translation_note", note=note)
         self.details_text.configure(state="normal")
@@ -771,57 +1008,71 @@ class InverterParameterEditor:
     # ------------------------------------------------------------------
     def _prepare_connection(self) -> bool:
         """Validate the serial settings on the UI thread before a task starts."""
+        if self._offline:
+            self._set_status("connection.offline_status", "warning")
+            self.open_connection_settings()
+            return False
         port = self.selected_port.get()
+        parent = self.diagnostics_window.window if self.diagnostics_window else self.root
         if not port:
             messagebox.showerror(
-                self.t("dialog.select_port.title"), self.t("dialog.select_port.body")
+                self.t("dialog.select_port.title"), self.t("dialog.select_port.body"), parent=parent
             )
             return False
         try:
             device_id = int(self.selected_device_id.get())
         except (tk.TclError, ValueError):
             device_id = 0
-        if not 1 <= device_id <= 247:
+        maximum = self.connection_settings.maximum_device_id
+        if not 1 <= device_id <= maximum:
             messagebox.showerror(
-                self.t("dialog.device_id.title"), self.t("dialog.device_id.body")
+                self.t("dialog.device_id.title"), self.t("connection.device_id_body", maximum=maximum), parent=parent
             )
             return False
         self._connection = {"port": port, "device_id": device_id}
         return True
 
-    def _start_task(self, title, work, on_success):
-        """Run ``work(link, progress)`` on a worker thread."""
+    def _start_task(self, title, work, on_success, *, connection_override=None,
+                    on_error=None, on_cancel=None):
+        """Run work on a worker thread, optionally using an uncommitted draft."""
         if self._busy:
             self._set_status("status.busy", "warning")
-            return
-        if not self._prepare_connection():
-            return
+            return False
+        if connection_override is None:
+            if not self._prepare_connection():
+                return False
+            port, device_id = self._connection["port"], self._connection["device_id"]
+            settings = self.connection_settings
+        else:
+            port, device_id, settings = connection_override
 
         self._cancel.clear()
+        link = create_link(port, device_id, settings, self._cancel)
         self._busy = True
         self._set_busy(True, title)
-        link = ModbusLink(
-            self._connection["port"],
-            self._connection["device_id"],
-            self.profile.link,
-            self._cancel,
-        )
 
         def runner():
             try:
                 link.open()
                 result = work(link, self._report_progress)
             except TaskCancelled:
-                self.root.after(0, self._task_cancelled, title)
+                callback, args = self._task_cancelled, (title, on_cancel)
             except Exception as exc:  # surfaced in the UI, never crashes the app
                 logger.exception("%s failed", title)
-                self.root.after(0, self._task_failed, title, exc)
+                callback, args = self._task_failed, (title, exc, on_error)
             else:
-                self.root.after(0, self._task_finished, result, on_success)
+                callback, args = self._task_finished, (result, on_success)
             finally:
-                link.close()
+                try:
+                    link.close()
+                except Exception as exc:
+                    logger.exception("Closing link failed")
+                    callback, args = self._task_failed, (title, exc, on_error)
+            # Release the port before enabling Retry in any window.
+            self.root.after(0, callback, *args)
 
         threading.Thread(target=runner, name="modbus-worker", daemon=True).start()
+        return True
 
     def _report_progress(self, done, total):
         self.root.after(0, self._set_progress, done, total)
@@ -837,6 +1088,14 @@ class InverterParameterEditor:
         state = "disabled" if busy else "normal"
         for widget in self._action_widgets:
             widget.configure(state=state)
+        self._hide_header_tooltips()
+        self._update_diagnostics_button()
+        if self.diagnostics_window:
+            self.diagnostics_window.set_busy(busy)
+        if self.connection_dialog:
+            self.connection_dialog.set_busy(busy)
+        if self.updates_dialog:
+            self.updates_dialog.refresh_actions()
         if busy:
             self.progress.configure(value=0, maximum=1)
             self.progress.grid(row=0, column=3, sticky="e", padx=(0, 10))
@@ -859,17 +1118,112 @@ class InverterParameterEditor:
         self._set_busy(False)
         on_success(result)
 
-    def _task_cancelled(self, title):
+    def _task_cancelled(self, title, on_cancel=None):
         self._busy = False
+        self._resetting = False
         self._set_busy(False)
         self._set_status("status.cancelled", "warning", title=title)
+        if on_cancel:
+            on_cancel()
 
-    def _task_failed(self, title, exc):
+    def _task_failed(self, title, exc, on_error=None):
         self._busy = False
         self._set_busy(False)
         message = self.t("error.open_port", port=exc.port) if isinstance(exc, LinkError) else str(exc)
+        if isinstance(exc, diagnostics.ResetRefused):
+            message = self.t(exc.key)
+        if isinstance(exc, FCProtocolError):
+            message = self.t(exc.key, **exc.params)
+        self._resetting = False
         self._set_status("status.failed", "danger", title=title, error=message)
-        messagebox.showerror(title, message)
+        if on_error:
+            on_error(message)
+            return
+        parent = self.diagnostics_window.window if self.diagnostics_window else self.root
+        messagebox.showerror(title, message, parent=parent)
+
+    # ------------------------------------------------------------------
+    # Fault decoding / keypad-independent diagnostics
+    # ------------------------------------------------------------------
+    def _update_diagnostics_button(self):
+        self.diagnostics_button.configure(
+            state="normal" if self.profile.diagnostics and not self._busy else "disabled"
+        )
+
+    def open_diagnostics(self, auto_read=True):
+        if self._busy or not self.profile.diagnostics:
+            return
+        if self.diagnostics_window:
+            self.diagnostics_window.window.lift()
+            return
+        self.diagnostics_window = DiagnosticsWindow(self)
+        if auto_read:
+            self.read_diagnostics()
+
+    def _diagnostic_parameters(self):
+        by_code = self.profile.by_code()
+        return [by_code[code] for code in self.profile.diagnostics.get("fields", {})]
+
+    def read_diagnostics(self):
+        if self._busy or not self.profile.diagnostics or not self._prepare_connection():
+            return
+        parameters = self._diagnostic_parameters()
+        if self.diagnostics_window:
+            self.diagnostics_window.clear()
+        self._start_task(
+            self.t("diag.refresh"),
+            lambda link, progress: link.read_values(parameters, progress),
+            self._diagnostics_finished,
+        )
+
+    def _diagnostics_finished(self, values):
+        self._read_finished(values)
+        if self.diagnostics_window:
+            self.diagnostics_window.apply(values)
+
+    def reset_diagnostics(self):
+        if self._busy or self.profile.diagnostics.get("reset") != "danfoss_fc":
+            return
+        if not self.trip_reset_supported:
+            parent = self.diagnostics_window.window if self.diagnostics_window else self.root
+            messagebox.showwarning(self.t("diag.reset"), self.t("diag.reset_fc_unavailable"), parent=parent)
+            return
+        if not self._prepare_connection():
+            return
+        parent = self.diagnostics_window.window if self.diagnostics_window else self.root
+        if not messagebox.askyesno(
+            self.t("diag.reset"),
+            self.t("diag.reset_confirm", model=self.profile.model, **self._connection),
+            parent=parent, default="no",
+        ):
+            return
+        parameters = self._diagnostic_parameters()
+        status_parameter = self.profile.by_code()["16-03"]
+        if self.diagnostics_window:
+            self.diagnostics_window.clear()
+        self._resetting = True
+
+        def work(link, progress):
+            link.reset_fc_trip(status_parameter)
+            # Acknowledging the coil is NOT evidence that the fault is gone.
+            link.cancel.wait(0.3)
+            return link.read_values(parameters, progress)
+
+        self._start_task(self.t("diag.reset"), work, self._reset_finished)
+
+    def _reset_finished(self, values):
+        self._resetting = False
+        self._diagnostics_finished(values)
+        alarm, status = values.get("16-90"), values.get("16-03")
+        if type(alarm) is not int or type(status) is not int:
+            key = "diag.reset_unverified"
+        elif alarm or status & ((1 << 3) | (1 << 4) | (1 << 6)):
+            key = "diag.reset_remaining"
+        else:
+            key = "diag.reset_clear"
+        self._set_status(key, "success" if key == "diag.reset_clear" else "warning")
+        parent = self.diagnostics_window.window if self.diagnostics_window else self.root
+        messagebox.showinfo(self.t("diag.reset"), self.t(key), parent=parent)
 
     # ------------------------------------------------------------------
     # Revision detection
@@ -878,6 +1232,9 @@ class InverterParameterEditor:
         """Run an action, resolving an auto-detect profile first."""
         if self._busy:
             self._set_status("status.busy", "warning")
+            return
+        if self._offline:
+            self._prepare_connection()
             return
         if not detection.needs_detection(self.profile):
             continuation()
@@ -908,10 +1265,10 @@ class InverterParameterEditor:
             parameter = self.profile.parameters[0]
 
             def work(link, _progress):
-                result = link.read_register(parameter["address"])
-                if result.isError():
+                result = link.read_parameter(parameter)
+                if result == READ_ERROR:
                     raise ModbusException(str(result))
-                return parameter["code"], result.registers[0]
+                return parameter["code"], result
 
             self._start_task(self.t("task.test_link"), work, self._link_test_finished)
 
@@ -926,7 +1283,7 @@ class InverterParameterEditor:
         """Read the parameters of the selected group."""
 
         def start():
-            parameters = self._group_parameters()
+            parameters = self.session.read_parameters_with_context(self._group_parameters())
             if not parameters:
                 messagebox.showwarning(
                     self.t("dialog.nothing_to_read.title"),
@@ -945,7 +1302,7 @@ class InverterParameterEditor:
         """Read every parameter of the selected profile."""
 
         def start():
-            parameters = list(self.profile.parameters)
+            parameters = self.session.read_parameters_with_context(self.profile.parameters)
             self._start_task(
                 self.t("task.read_all", n=len(parameters)),
                 lambda link, progress: link.read_values(parameters, progress),
@@ -1050,11 +1407,13 @@ class InverterParameterEditor:
 
     def _write_finished(self, result):
         written, failed = result["written"], result["failed"]
-        self.session.apply_write(written)
+        self.session.apply_write(written, result.get("context"))
         self.update_table()
         self._update_link_indicator(ok=bool(written))
         if failed:
-            details = "\n".join(f"{code}: {message}" for code, message in failed[:12])
+            details = "\n".join(
+                f"{code}: {self._problem_text(message) if isinstance(message, Problem) else message}"
+                for code, message in failed[:12])
             self._set_status(
                 "status.write_partial", "danger", written=len(written), failed=len(failed)
             )
@@ -1077,7 +1436,13 @@ class InverterParameterEditor:
         ]
 
     def save_to_file(self):
-        """Read every writable parameter and store it as JSON."""
+        """Back up the drive, or export known/edited values while offline."""
+        if self._busy:
+            self._set_status("status.busy", "warning")
+            return
+        if self._offline:
+            self._save_cached_to_file()
+            return
 
         def start():
             file_path = filedialog.asksaveasfilename(
@@ -1089,7 +1454,7 @@ class InverterParameterEditor:
             if not file_path:
                 logger.info("Saving cancelled by user")
                 return
-            writable = [p for p in self.profile.parameters if not p.get("read_only")]
+            writable = self.session.read_parameters_with_context(self.profile.parameters)
             self._start_task(
                 self.t("task.read_for_save"),
                 lambda link, progress: link.read_values(writable, progress),
@@ -1098,7 +1463,31 @@ class InverterParameterEditor:
 
         self._run_after_profile_detection(start)
 
-    def _write_settings_file(self, file_path, settings):
+    def _save_cached_to_file(self):
+        # Exporting a changed selector must also rescale unedited cached times
+        # into that selector's units, without changing their seconds.
+        export_parameters = [p for p in self.profile.parameters
+                             if p["code"] in self.session.edited
+                             or any(code in self.session.edited for code in codecs.context_codes(p))]
+        targets, problems = self.session.collect_write_targets(export_parameters)
+        if problems:
+            messagebox.showerror(self.t("dialog.save_failed.title"), "\n".join(
+                f"{code}: {self._problem_text(problem)}" for code, problem in problems))
+            return
+        values = {p["code"]: self.session.loaded[p["code"]] for p in self.profile.parameters
+                  if p["code"] in self.session.loaded
+                  and p["code"] not in self.session.failed}
+        values.update({target.code: target.raw_value for target in targets})
+        if not values:
+            messagebox.showwarning(self.t("dialog.save.title"), self.t("connection.no_cached_values"))
+            return
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".json", initialfile=f"{self.profile.key}_settings.json",
+            filetypes=self._file_types(), title=self.t("dialog.save.title"))
+        if file_path:
+            self._write_settings_file(file_path, values, apply_to_session=False)
+
+    def _write_settings_file(self, file_path, settings, *, apply_to_session=True):
         payload = self.session.settings_payload(settings, self.selected_device_id.get())
         try:
             with open(file_path, "w", encoding="utf-8") as stream:
@@ -1107,7 +1496,8 @@ class InverterParameterEditor:
             self._set_status("status.save_failed", "danger", error=exc)
             messagebox.showerror(self.t("dialog.save_failed.title"), str(exc))
             return
-        self._read_finished(settings)
+        if apply_to_session:
+            self._read_finished(settings)
         self._set_status(
             "status.saved", "success", n=len(settings), file=Path(file_path).name
         )
@@ -1144,6 +1534,7 @@ class InverterParameterEditor:
         self.session.failed = set(loaded.failed)
         self.session.edited.clear()
         self.update_table()
+        self._update_link_indicator()
         note = self.t.plural("status.loaded_note", loaded.skipped) if loaded.skipped else ""
         self._set_status(
             "status.loaded",
@@ -1184,13 +1575,17 @@ class InverterParameterEditor:
     def _update_link_indicator(self, ok=None, busy=None):
         connected = bool(self.selected_port.get())
         port = self.selected_port.get() or self.t("link.no_port")
-        frame = self.profile.link.frame
-        self.link_settings_label.configure(text=frame)
+        settings = self.connection_settings
+        protocol = "FC" if settings.protocol == "danfoss_fc" else "RTU"
+        frame = f"{protocol} · {settings.frame}"
         try:
             device_id = int(self.selected_device_id.get())
         except (tk.TclError, ValueError):
             device_id = "?"
-        self.link_text.set(self.t("link.summary", port=port, link=frame, device_id=device_id))
+        model = self.profile.label(self.language)
+        link = (self.t("connection.offline") if self._offline
+                else self.t("link.summary", port=port, link=frame, device_id=device_id))
+        self.link_text.set(f"{model}  |  {link}")
 
         if busy or self._busy:
             colour = self.palette.warning
@@ -1201,16 +1596,19 @@ class InverterParameterEditor:
         self.link_dot.configure(foreground=colour, background=self.palette.surface)
 
     def _update_titles(self):
-        self.root.title(f"{self.t('app.name')} — {self.profile.model} ({self.VERSION})")
-        self.header_subtitle.configure(
-            text=self.t(
-                "header.subtitle",
-                model=self.profile.model,
-                parameters=self.t.plural("count.parameters", len(self.profile.parameters)),
-                groups=self.t.plural("count.groups", len(self.profile.groups)),
-                version=self.VERSION,
-            )
+        model = self.profile.model
+        self.root.title(f"{self.t('app.name')} — {model} ({self.VERSION})")
+        self.header_title.configure(text=model)
+        subtitle = self.t(
+            "header.compact",
+            parameters=self.t.plural("count.parameters", len(self.profile.parameters)),
+            groups=self.t.plural("count.groups", len(self.profile.groups)),
+            version=self.VERSION,
         )
+        blocked = sum(bool(p.get("support_blocked")) for p in self.profile.parameters)
+        if blocked:
+            subtitle += "  ·  " + self.t("profile.partial", n=blocked)
+        self.header_subtitle.configure(text=subtitle)
         self.manual_button.configure(state="normal" if self.profile.manual_url else "disabled")
         self._update_link_indicator()
 
@@ -1235,10 +1633,10 @@ class InverterParameterEditor:
 
     def _restore_connection_preferences(self):
         port = self.preferences.get("port")
-        if port and port in (self.port_combobox["values"] or ()):
+        if isinstance(port, str) and port:
             self.selected_port.set(port)
         device_id = self.preferences.get("device_id")
-        if isinstance(device_id, int) and 1 <= device_id <= 247:
+        if isinstance(device_id, int) and 1 <= device_id <= 255:
             self.selected_device_id.set(device_id)
         self._update_link_indicator()
 
@@ -1251,9 +1649,16 @@ class InverterParameterEditor:
             "language": self.t.language,
             "theme": self.palette.name,
             "profile": self.profile.key,
+            "manufacturer": self.profile.manufacturer,
             "port": self.selected_port.get(),
             "device_id": device_id,
+            "link_overrides": self._link_overrides,
             "geometry": self.root.winfo_geometry(),
+            "offline": self._offline,
+            "auto_check_updates": self.auto_check_updates,
+            "details_collapsed": self._details_collapsed,
+            "details_visibility_explicit": self._details_visibility_explicit,
+            "details_height": self._details_height,
         }
         try:
             with PREFERENCES_PATH.open("w", encoding="utf-8") as stream:
@@ -1262,11 +1667,18 @@ class InverterParameterEditor:
             logger.debug("Could not store preferences", exc_info=True)
 
     def _on_close(self):
+        if self._busy and self._resetting:
+            self.cancel_task()
+            self._set_status("status.wait_operation", "warning")
+            return
         if self._busy and not messagebox.askyesno(
             self.t("dialog.closing.title"), self.t("dialog.closing.body")
         ):
             return
         self._cancel.set()
+        self._cancel_startup_update_check()
+        if self.updates_dialog:
+            self.updates_dialog.close()
         self._save_preferences()
         self.root.destroy()
 
@@ -1274,6 +1686,7 @@ class InverterParameterEditor:
 def main():
     """Start the editor; a broken profile directory is reported up front."""
     logging.basicConfig(level=logging.INFO)
+    updates.hold_installation_mutex()
     root = tk.Tk()
     try:
         InverterParameterEditor(root)

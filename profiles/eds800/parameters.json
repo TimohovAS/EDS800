@@ -1,7 +1,7 @@
 [
   {
     "code": "F0.00",
-    "description": "Frequency input channel selection",
+    "description": "Frequency reference source",
     "range": "0~11",
     "minimum": 0.0,
     "maximum": 11.0,
@@ -12,12 +12,14 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects where the drive gets its speed reference. F7 scales the analog and pulse inputs.\n\n0 — Keypad potentiometer\n1 — Digital setting F0.01 from the keypad\n2 — UP/DOWN inputs, with the reference retained\n3 — RS-485, initial reference from F0.01\n4 — VCI voltage input, 0–10 V\n5 — CCI voltage or current input, 0–10 V or 4–20 mA, set by the V/A switch\n6 — Reserved\n7 — Pulse frequency on X5 (F5.04 = 38, F7.13–F7.17)\n8 — Combined reference (F2.09)\n9 — UP/DOWN inputs without retention, starting at F0.01\n10 — RS-485, with the reference retained at power-off\n11 — Pulse width (PWM), scaled by F7.08–F7.12",
+    "manual_pdf_page": 40
   },
   {
     "code": "F0.01",
     "description": "Frequency digital setting",
-    "range": "0~400",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -27,11 +29,13 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets the initial reference for digital keypad control and the RS-485 mode F0.00 = 3. It also supplies the initial value for UP/DOWN without retention (F0.00 = 9).",
+    "manual_pdf_page": 40
   },
   {
     "code": "F0.02",
-    "description": "Run command channel selection",
+    "description": "Run command source",
     "range": "0~4",
     "minimum": 0.0,
     "maximum": 4.0,
@@ -42,7 +46,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects who can start and stop the drive. With terminal or RS-485 commands, the selected mode also determines whether keypad STOP is active.\n\n0 — Keypad\n1 — Terminals, keypad STOP disabled\n2 — Terminals, keypad STOP enabled\n3 — RS-485, keypad STOP disabled\n4 — RS-485, keypad STOP enabled",
+    "manual_pdf_page": 40
   },
   {
     "code": "F0.03",
@@ -60,7 +66,10 @@
     "digit_chars": "01",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "111"
+    "digit_limits": "111",
+    "help": "Read the digits from right to left.\nUnits — 0 forward, 1 reverse (keypad and RS-485).\nTens — 0 permit reverse, 1 inhibit reverse (all command sources).\nHundreds — 0 REV key, 1 JOG key.",
+    "note": "The table in §5.2 and the description in §6.1 print different factory settings. The editor displays the profile's 000.",
+    "manual_pdf_page": 40
   },
   {
     "code": "F0.04",
@@ -75,7 +84,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Selects the shape of the output frequency ramp.\n\n0 — Linear ramp\n1 — S-curve (F0.05 and F0.06)",
+    "manual_pdf_page": 40
   },
   {
     "code": "F0.05",
@@ -90,7 +101,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Percentage of the ramp spent increasing the slope from zero in S-curve mode. F0.05 + F0.06 must be at most 90%.",
+    "manual_pdf_page": 40
   },
   {
     "code": "F0.06",
@@ -105,7 +118,10 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Percentage of the S-curve ramp with constant slope. The remaining time is used for the final transition to zero slope. F0.05 + F0.06 must be at most 90%.",
+    "note": "§5.2 gives a 70% upper limit, while §6.1 gives 80%. The profile uses the limit from §5.2.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.07",
@@ -120,7 +136,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the unit for ramp sets 1–7. Jog ramps are set in seconds and PLC step duration has its own unit in F4.00.\n\n0 — Seconds\n1 — Minutes",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.08",
@@ -135,7 +153,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 1. Time from 0 Hz to the upper frequency limit F0.10. The unit comes from F0.07.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.09",
@@ -150,12 +170,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 1. Time from the upper frequency limit F0.10 to 0 Hz. The unit comes from F0.07.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.10",
     "description": "Upper frequency limit",
-    "range": "0~400",
+    "range": "F0.11–400 Hz",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -165,12 +187,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Caps the output frequency and serves as the reference for acceleration and deceleration times.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.11",
     "description": "Lower frequency limit",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -180,7 +204,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "If the requested frequency falls below this threshold, F0.12 determines how the drive responds.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.12",
@@ -195,7 +221,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the response when the frequency reference is below F0.11.\n\n0 — Run at F0.11\n1 — Reduce output frequency to 0 Hz",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.13",
@@ -210,7 +238,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects how the drive boosts motor voltage at low frequency.\n\n0 — Fixed boost set by F0.14\n1 — Automatic boost based on motor current",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.14",
@@ -225,7 +255,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets the low-frequency voltage boost used to improve starting torque. Excessive boost can cause heating or overcurrent.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F0.15",
@@ -240,7 +272,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the relationship between output voltage and frequency. In user-defined mode, F2.37–F2.44 hold the curve coordinates.\n\n0 — Constant torque\n1 — Variable torque, power law 2.0\n2 — Variable torque, power law 1.7\n3 — Variable torque, power law 1.2\n4 — User-defined V/F curve",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.00",
@@ -255,7 +289,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Selects the sequence after a run command.\n\n0 — Start at F1.01 and hold it for F1.02\n1 — DC brake using F1.03/F1.04, then start\n2 — Reserved",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.01",
@@ -270,7 +306,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "The first output frequency after start. The lower operating limit F0.11 does not constrain it.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.02",
@@ -285,7 +323,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Time spent at F1.01 before the drive continues accelerating.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.03",
@@ -300,7 +340,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets the DC braking voltage for the zero-frequency braking function. F1.00 = 1 also uses this value for braking before starting.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.04",
@@ -315,7 +357,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets the duration of the DC braking associated with F1.03. Stop-command braking is set separately in F1.06–F1.08.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.05",
@@ -330,7 +374,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Defines what happens when a stop command is received.\n\n0 — Ramp down to 0 Hz\n1 — Coast with the drive output switched off\n2 — Ramp down to F1.06, then apply DC braking",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.06",
@@ -345,7 +391,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "When F1.05 = 2, DC braking begins as the output frequency falls to this value.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.07",
@@ -360,7 +408,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets DC braking duration when F1.05 = 2. A setting of 0 skips the DC braking phase.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F1.08",
@@ -375,7 +425,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "DC braking voltage as a percentage of the drive's rated input voltage.",
+    "manual_pdf_page": 41
   },
   {
     "code": "F2.00",
@@ -390,7 +442,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "A longer time constant smooths noisy analog signals and slows the response. §6.3 specifies a value above the sampling period F3.11.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.01",
@@ -405,7 +459,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Time the drive holds zero output frequency during a forward-to-reverse or reverse-to-forward transition.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.02",
@@ -420,7 +476,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Adjusts output voltage based on motor current under steady, light load.\n\n0 — Disabled\n1 — Enabled",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.03",
@@ -435,7 +493,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Keeps output voltage stable when the input voltage varies.\n\n0 — Disabled\n1 — Enabled throughout operation\n2 — Enabled except during deceleration",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.04",
@@ -450,7 +510,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Compensates the induction motor's speed drop as load increases by adjusting output frequency. 0 disables compensation.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.05",
@@ -466,7 +528,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the inverter switching frequency. Higher settings typically reduce audible motor noise but increase switching losses. Check the model limits in Table 6-1.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.06",
@@ -481,7 +545,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Target frequency while a JOG command is active. JOG uses the separate ramps F2.07 and F2.08.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.07",
@@ -496,7 +562,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Acceleration time in JOG, specified in seconds for a change from 0 Hz to F0.10.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.08",
@@ -511,7 +579,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Deceleration time in JOG, specified in seconds for a change from F0.10 to 0 Hz.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.09",
@@ -526,7 +596,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Combines frequency references when F0.00 = 8.\n\n0 — VCI + CCI\n1 — VCI − CCI\n2–5 — Reserved\n6 — PULSE + CCI\n7 — PULSE − CCI\n8–12 — Reserved\n13 — First nonzero reference, VCI takes priority over CCI\n14 — Reserved\n15 — RS-485 + CCI\n16 — RS-485 − CCI\n17 — RS-485 + VCI\n18 — RS-485 − VCI\n19 — RS-485 + keypad potentiometer\n20 — RS-485 − keypad potentiometer\n21 — VCI + keypad potentiometer\n22 — VCI − keypad potentiometer\n23 — CCI + keypad potentiometer\n24 — CCI − keypad potentiometer\n25 — VCI × keypad potentiometer\n26–28 — Reserved",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.10",
@@ -541,7 +613,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Scales the frequency reference received from a master drive. 100% passes it through unchanged.",
+    "manual_pdf_page": 42
   },
   {
     "code": "F2.11",
@@ -559,7 +633,9 @@
     "digit_chars": "01",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "1111"
+    "digit_limits": "1111",
+    "help": "Each digit hides its item at 0 and displays it at 1.\nFrom right to left the items are C-07 run time, C-08 total run time, C-09 input status and C-10 output status.",
+    "manual_pdf_page": 43
   },
   {
     "code": "F2.12",
@@ -577,7 +653,10 @@
     "digit_chars": "01",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "1111"
+    "digit_limits": "1111",
+    "help": "Each digit hides its item at 0 and displays it at 1.\nFrom right to left the items are VCI, reserved, CCI and external pulse input.",
+    "note": "The C-12/C-13 monitor numbering differs between §5.2 and §6.3. The digit functions are listed here by signal.",
+    "manual_pdf_page": 43
   },
   {
     "code": "F2.13",
@@ -594,8 +673,10 @@
     "digits": 3,
     "digit_chars": "01234",
     "read_only": false,
-    "change_while_running": true,
-    "digit_limits": "432"
+    "change_while_running": false,
+    "digit_limits": "432",
+    "help": "Read the digits from right to left.\nUnits — 0 allow edits, 1 block all except F2.13, 2 also allow F0.01.\nTens — 0 no action, 1 restore factory settings, 2 erase the fault history.\nHundreds — keypad lock mode. 0 lock all keys, 1 keep STOP, 2 keep arrows and STOP, 3 keep RUN and STOP, 4 keep SHIFT and STOP. Hold ESC/MENU for five seconds to toggle the lock.",
+    "manual_pdf_page": 43
   },
   {
     "code": "F2.14",
@@ -612,8 +693,10 @@
     "digits": 3,
     "digit_chars": "012345",
     "read_only": false,
-    "change_while_running": true,
-    "digit_limits": "125"
+    "change_while_running": false,
+    "digit_limits": "125",
+    "help": "Read the digits from right to left. Factory setting 003 means 9600 8N1 with replies enabled.\nUnits — 0 = 1200, 1 = 2400, 2 = 4800, 3 = 9600, 4 = 19200, 5 = 38400 bit/s.\nTens — 0 = 8N1, 1 = 8E1 (even), 2 = 8O1 (odd).\nHundreds — 0 process commands and reply, 1 process commands without a reply.",
+    "manual_pdf_page": 43
   },
   {
     "code": "F2.15",
@@ -628,7 +711,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Address used to identify this drive. Addresses 1–127 are individual. Address 0 receives broadcast commands without replying.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.16",
@@ -643,7 +728,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Time without serial communication before the drive reports E016. 0 disables timeout detection.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.17",
@@ -658,7 +745,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the delay before the drive replies to a serial request.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.18",
@@ -673,7 +762,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 2. Time from 0 Hz to the upper frequency limit F0.10. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.19",
@@ -688,7 +779,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 2. Time from the upper frequency limit F0.10 to 0 Hz. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.20",
@@ -703,7 +796,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 3. Time from 0 Hz to the upper frequency limit F0.10. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.21",
@@ -718,7 +813,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 3. Time from the upper frequency limit F0.10 to 0 Hz. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.22",
@@ -733,7 +830,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 4. Time from 0 Hz to the upper frequency limit F0.10. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.23",
@@ -748,7 +847,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 4. Time from the upper frequency limit F0.10 to 0 Hz. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.24",
@@ -763,7 +864,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 5. Time from 0 Hz to the upper frequency limit F0.10. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.25",
@@ -778,7 +881,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 5. Time from the upper frequency limit F0.10 to 0 Hz. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.26",
@@ -793,7 +898,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 6. Time from 0 Hz to the upper frequency limit F0.10. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.27",
@@ -808,7 +915,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 6. Time from the upper frequency limit F0.10 to 0 Hz. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.28",
@@ -823,7 +932,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 7. Time from 0 Hz to the upper frequency limit F0.10. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.29",
@@ -838,12 +949,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Ramp set 7. Time from the upper frequency limit F0.10 to 0 Hz. The unit comes from F0.07.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.30",
-    "description": "Multi-section frequency 1",
-    "range": "0~400",
+    "description": "Preset frequency 1",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -853,12 +966,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency preset for speed step 1. The operating range is set by F0.11 and F0.10.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.31",
-    "description": "Multi-section frequency 2",
-    "range": "0~400",
+    "description": "Preset frequency 2",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -868,12 +983,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency preset for speed step 2. The operating range is set by F0.11 and F0.10.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.32",
-    "description": "Multi-section frequency 3",
-    "range": "0~400",
+    "description": "Preset frequency 3",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -883,12 +1000,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency preset for speed step 3. The operating range is set by F0.11 and F0.10.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.33",
-    "description": "Multi-section frequency 4",
-    "range": "0~400",
+    "description": "Preset frequency 4",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -898,12 +1017,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency preset for speed step 4. The operating range is set by F0.11 and F0.10.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.34",
-    "description": "Multi-section frequency 5",
-    "range": "0~400",
+    "description": "Preset frequency 5",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -913,12 +1034,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency preset for speed step 5. The operating range is set by F0.11 and F0.10.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.35",
-    "description": "Multi-section frequency 6",
-    "range": "0~400",
+    "description": "Preset frequency 6",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -928,12 +1051,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency preset for speed step 6. The operating range is set by F0.11 and F0.10.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.36",
-    "description": "Multi-section frequency 7",
-    "range": "0~400",
+    "description": "Preset frequency 7",
+    "range": "F0.11–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -943,11 +1068,13 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency preset for speed step 7. The operating range is set by F0.11 and F0.10.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.37",
-    "description": "Multi-section frequency 8",
+    "description": "Preset frequency 8 / V/F frequency",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -958,11 +1085,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the frequency coordinate of V/F point 0 (range 0–F2.39, factory value 0.50 Hz). In the other modes it is frequency preset 8.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.38",
-    "description": "Multi-section frequency 9",
+    "description": "Preset frequency 9 / V/F voltage",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -973,11 +1103,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the voltage coordinate of V/F point 0 (range 0–F2.40, factory value 2.00 %). In the other modes it is frequency preset 9.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.39",
-    "description": "Multi-section frequency 10",
+    "description": "Preset frequency 10 / V/F frequency",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -988,11 +1121,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the frequency coordinate of V/F point 1 (range F2.37–F2.41, factory value 20.00 Hz). In the other modes it is frequency preset 10.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.40",
-    "description": "Multi-section frequency 11",
+    "description": "Preset frequency 11 / V/F voltage",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1003,11 +1139,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the voltage coordinate of V/F point 1 (range F2.38–F2.42, factory value 38.00 %). In the other modes it is frequency preset 11.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.41",
-    "description": "Multi-section frequency 12",
+    "description": "Preset frequency 12 / V/F frequency",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1018,11 +1157,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the frequency coordinate of V/F point 2 (range F2.39–F2.43, factory value 25.00 Hz). In the other modes it is frequency preset 12.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 44
   },
   {
     "code": "F2.42",
-    "description": "Multi-section frequency 13",
+    "description": "Preset frequency 13 / V/F voltage",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1033,11 +1175,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the voltage coordinate of V/F point 2 (range F2.40–F2.44, factory value 48.00 %). In the other modes it is frequency preset 13.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.43",
-    "description": "Multi-section frequency 14",
+    "description": "Preset frequency 14 / V/F frequency",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1048,11 +1193,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the frequency coordinate of V/F point 3 (range F2.41–F0.10, factory value 40.00 Hz). In the other modes it is frequency preset 14.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.44",
-    "description": "Multi-section frequency 15",
+    "description": "Preset frequency 15 / V/F voltage",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1063,11 +1211,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "With F0.15 = 4, this register is the voltage coordinate of V/F point 3 (range F2.42–100%, factory value 80.00 %). In the other modes it is frequency preset 15.",
+    "note": "The editor shows the preset-frequency units and default in the table. The V/F mode uses the range and units above.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.45",
-    "description": "Jump frequency 1",
+    "description": "Skip frequency 1",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1078,11 +1229,13 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Center of skip band 1, used to avoid a mechanical resonance. Set its range with F2.46.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.46",
-    "description": "Jump frequency 1 range",
+    "description": "Skip frequency 1 range",
     "range": "0~30",
     "minimum": 0.0,
     "maximum": 30.0,
@@ -1093,11 +1246,13 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the size of the frequency band skipped around F2.45.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.47",
-    "description": "Jump frequency 2",
+    "description": "Skip frequency 2",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1108,11 +1263,13 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Center of skip band 2, used to avoid a mechanical resonance. Set its range with F2.48.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.48",
-    "description": "Jump frequency 2 range",
+    "description": "Skip frequency 2 range",
     "range": "0~30",
     "minimum": 0.0,
     "maximum": 30.0,
@@ -1123,11 +1280,13 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the size of the frequency band skipped around F2.47.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.49",
-    "description": "Jump frequency 3",
+    "description": "Skip frequency 3",
     "range": "0~400",
     "minimum": 0.0,
     "maximum": 400.0,
@@ -1138,11 +1297,13 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Center of skip band 3, used to avoid a mechanical resonance. Set its range with F2.50.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.50",
-    "description": "Jump frequency 3 range",
+    "description": "Skip frequency 3 range",
     "range": "0~30",
     "minimum": 0.0,
     "maximum": 30.0,
@@ -1153,7 +1314,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets the size of the frequency band skipped around F2.49.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.51",
@@ -1168,7 +1331,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "The drive signals when F2.52 reaches this value if relay F3.30 or output F5.10 is assigned function 19.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F2.52",
@@ -1183,7 +1348,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Total accumulated run time of the inverter, in hours.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.00",
@@ -1198,7 +1365,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Enables the built-in controller for a feedback loop. Option 2 is for constant-pressure control with a single pump.\n\n0 — Closed loop disabled\n1 — Standard PID\n2 — Constant-pressure PID with sleep and wake-up",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.01",
@@ -1213,7 +1382,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects the signal that supplies the PID setpoint.\n\n0 — Digital setpoint F3.03\n1 — VCI, 0–10 V\n2 — CCI, 0–10 V or 4–20 mA depending on the V/A switch\n3 — Keypad potentiometer",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.02",
@@ -1228,7 +1399,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects the measured signal used by the controller.\n\n0 — VCI, 0–10 V\n1 — CCI\n2 — VCI + CCI\n3 — VCI − CCI\n4 — Lower of VCI and CCI\n5 — Higher of VCI and CCI\n6 — Pulse feedback",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.03",
@@ -1243,12 +1416,15 @@
     "scale": 1000,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Used when F3.01 = 0. With F3.00 = 1, this is a voltage-equivalent setpoint (0–9.999 V). With F3.00 = 2, it is target pressure in MPa, up to the sensor scale F3.21.",
+    "note": "The table displays volts for standard PID. In constant-pressure mode the displayed number represents MPa.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.04",
     "description": "Minimum setpoint",
-    "range": "0~100",
+    "range": "0%–F3.06",
     "minimum": 0.0,
     "maximum": 100.0,
     "unit": "%",
@@ -1258,7 +1434,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Lower setpoint used to scale the feedback curve. F3.05 defines the matching feedback value.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.05",
@@ -1273,12 +1451,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Feedback percentage assigned to the lower setpoint F3.04.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.06",
     "description": "Maximum setpoint",
-    "range": "0~100",
+    "range": "F3.04–100%",
     "minimum": 0.0,
     "maximum": 100.0,
     "unit": "%",
@@ -1288,7 +1468,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Upper setpoint used to scale the feedback curve. F3.07 defines the matching feedback value.",
+    "manual_pdf_page": 45
   },
   {
     "code": "F3.07",
@@ -1303,7 +1485,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Feedback percentage assigned to the upper setpoint F3.06.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.08",
@@ -1318,7 +1502,9 @@
     "scale": 1000,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets how strongly the controller responds to the current error. A high gain can cause oscillations.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.09",
@@ -1333,7 +1519,9 @@
     "scale": 1000,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets how strongly accumulated error acts to remove a persistent offset.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.10",
@@ -1348,7 +1536,9 @@
     "scale": 1000,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets the response to the rate of change of error. 0 removes the derivative contribution.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.11",
@@ -1363,7 +1553,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Interval between feedback samples and PID updates.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.12",
@@ -1378,7 +1570,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Error allowed as a percentage of the setpoint. In standard PID mode, the drive holds its output when the error is within this band.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.13",
@@ -1393,12 +1587,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "§6.4 specifies that integration acts when both setpoint and feedback are at or below this threshold.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.14",
     "description": "Closed-loop preset frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -1408,7 +1604,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "The drive ramps to this frequency before starting closed-loop regulation. Holding time is set by F3.15.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.15",
@@ -1423,7 +1621,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Time spent at F3.14 before the controller takes over. Set both F3.14 and F3.15 to zero to skip the preset stage.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.16",
@@ -1438,7 +1638,10 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Low frequency threshold for going to sleep. F3.18 determines how long the sleep condition must persist.",
+    "note": "§6.4 interchanges F3.16 and F3.17 in the headings. The profile follows the assignment in the §5.2 table.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.17",
@@ -1453,7 +1656,10 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Threshold for returning to operation from sleep. F3.19 determines how long the wake-up condition must persist.",
+    "note": "§6.4 interchanges F3.16 and F3.17 in the headings. The profile follows the assignment in the §5.2 table.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.18",
@@ -1468,7 +1674,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Delay before the drive enters sleep while the sleep condition persists.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.19",
@@ -1483,7 +1691,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Delay before the drive resumes operation when the wake-up condition persists.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.21",
@@ -1498,7 +1708,9 @@
     "scale": 1000,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Pressure in MPa corresponding to 10 V or 20 mA at full scale. Also limits the digital pressure setpoint F3.03.",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.26",
@@ -1513,7 +1725,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects what the keypad shows for C-11 and C-12 in the water-supply application.\n\n0 — Analog input voltages VCI and CCI\n1 — PID pressure setpoint and measured pressure",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.27",
@@ -1528,7 +1742,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects how the speed responds to an increase in the setpoint.\n\n0 — Direct (speed increases)\n1 — Reverse (speed decreases)",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.28",
@@ -1543,7 +1759,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects the value shown first on the keypad. SHIFT cycles through other monitor items.\n\n0 — Reference in standby, output frequency while running\n1 — Output frequency\n2 — Output current\n3 — Output voltage\n4 — DC bus voltage\n5 — Motor speed\n6 — Heatsink temperature\n7 — Run time\n8 — Accumulated run time\n9 — Input status\n10 — Output status\n11 — VCI / PID setpoint\n12 — CCI / PID feedback\n13 — YCI as listed in §6.4\n14 — External pulse input",
+    "manual_pdf_page": 46
   },
   {
     "code": "F3.29",
@@ -1558,11 +1776,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "§6.4 describes two uses. The RS-485 + YCI mode adds YCI after the delay. In PID mode, feedback below 12.5% of the setpoint for longer than the delay triggers E017. A value of 0 disables PID feedback-loss detection.",
+    "note": "The manual uses different descriptions for this register in different operating contexts. Verify availability against the drive's firmware.",
+    "manual_pdf_page": 47
   },
   {
     "code": "F3.30",
-    "description": "Fault relay function selection",
+    "description": "Relay TA/TB/TC function",
     "range": "0~24",
     "minimum": 0.0,
     "maximum": 24.0,
@@ -1573,14 +1794,16 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects the event that operates the relay. The factory assignment is 15, drive fault.\n\n0 — Drive running (RUN)\n1 — Reference frequency reached (FAR, F5.14)\n2 — Frequency level reached (FDT1, F5.15/F5.16)\n3 — Reserved\n4 — Overload warning (OL, F9.05/F9.06)\n5 — Upper frequency limit reached (FHL)\n6 — Lower frequency limit reached (FLL)\n7 — Undervoltage stop (LU)\n8 — External fault stop (EXT)\n9 — Running at zero frequency\n10 — PLC running\n11 — PLC step completed\n12 — PLC cycle completed\n13 — Reserved\n14 — Ready to run (RDY)\n15 — Drive fault\n16 — Traverse frequency limited\n17 — Counter final value reached (F5.25)\n18 — Counter preset reached (F5.26)\n19 — Run time threshold reached (F2.51)\n20 — Internal timer elapsed (F5.27)\n21 — Reserved\n22 — Running forward (FWD)\n23 — Running in reverse (REV)\n24 — Reserved",
+    "manual_pdf_page": 47
   },
   {
     "code": "F4.00",
     "description": "Simple PLC run setting",
-    "range": "0000~3212",
+    "range": "0000–2113",
     "minimum": 0.0,
-    "maximum": 3212.0,
+    "maximum": 2113.0,
     "unit": "",
     "address": 1024,
     "group": "F4",
@@ -1590,8 +1813,11 @@
     "digits": 4,
     "digit_chars": "0123",
     "read_only": false,
-    "change_while_running": true,
-    "digit_limits": "3212"
+    "change_while_running": false,
+    "digit_limits": "2113",
+    "help": "Read the digits from right to left.\nUnits — 0 disabled, 1 stop after one cycle, 2 hold the final frequency after one cycle, 3 repeat continuously.\nTens — 0 restart from step 1 after an interruption, 1 resume the interrupted step.\nHundreds — 0 step duration in seconds, 1 in minutes.\nThousands — 0 discard state at power-off, 1 retain state and resume on a run command (see §6.5 for terminal control), 2 retain state and automatically restart when power returns.",
+    "note": "The packed limit 2113 follows the right-to-left digit definitions in §6.5.",
+    "manual_pdf_page": 47
   },
   {
     "code": "F4.01",
@@ -1609,7 +1835,9 @@
     "digit_chars": "0123456",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "621"
+    "digit_limits": "621",
+    "help": "Read the digits from right to left.\nUnits — 0 use F2.30, 1 use the source selected in F0.00.\nTens — 0 forward, 1 reverse, 2 follow the run command.\nHundreds — 0–6 select ramp sets 1–7 (F0.08/F0.09 and F2.18–F2.29).",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.02",
@@ -1624,7 +1852,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "How long PLC step 1 runs. The hundreds digit of F4.00 selects seconds or minutes.",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.03",
@@ -1642,7 +1872,9 @@
     "digit_chars": "0123456",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "621"
+    "digit_limits": "621",
+    "help": "Read the digits from right to left.\nUnits — 0 use F2.31, 1 use the source selected in F0.00.\nTens — 0 forward, 1 reverse, 2 follow the run command.\nHundreds — 0–6 select ramp sets 1–7 (F0.08/F0.09 and F2.18–F2.29).",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.04",
@@ -1657,7 +1889,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "How long PLC step 2 runs. The hundreds digit of F4.00 selects seconds or minutes.",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.05",
@@ -1675,7 +1909,9 @@
     "digit_chars": "0123456",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "621"
+    "digit_limits": "621",
+    "help": "Read the digits from right to left.\nUnits — 0 use F2.32, 1 use the source selected in F0.00.\nTens — 0 forward, 1 reverse, 2 follow the run command.\nHundreds — 0–6 select ramp sets 1–7 (F0.08/F0.09 and F2.18–F2.29).",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.06",
@@ -1690,7 +1926,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "How long PLC step 3 runs. The hundreds digit of F4.00 selects seconds or minutes.",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.07",
@@ -1708,7 +1946,9 @@
     "digit_chars": "0123456",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "621"
+    "digit_limits": "621",
+    "help": "Read the digits from right to left.\nUnits — 0 use F2.33, 1 use the source selected in F0.00.\nTens — 0 forward, 1 reverse, 2 follow the run command.\nHundreds — 0–6 select ramp sets 1–7 (F0.08/F0.09 and F2.18–F2.29).",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.08",
@@ -1723,7 +1963,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "How long PLC step 4 runs. The hundreds digit of F4.00 selects seconds or minutes.",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.09",
@@ -1741,7 +1983,9 @@
     "digit_chars": "0123456",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "621"
+    "digit_limits": "621",
+    "help": "Read the digits from right to left.\nUnits — 0 use F2.34, 1 use the source selected in F0.00.\nTens — 0 forward, 1 reverse, 2 follow the run command.\nHundreds — 0–6 select ramp sets 1–7 (F0.08/F0.09 and F2.18–F2.29).",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.10",
@@ -1756,7 +2000,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "How long PLC step 5 runs. The hundreds digit of F4.00 selects seconds or minutes.",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.11",
@@ -1774,7 +2020,9 @@
     "digit_chars": "0123456",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "621"
+    "digit_limits": "621",
+    "help": "Read the digits from right to left.\nUnits — 0 use F2.35, 1 use the source selected in F0.00.\nTens — 0 forward, 1 reverse, 2 follow the run command.\nHundreds — 0–6 select ramp sets 1–7 (F0.08/F0.09 and F2.18–F2.29).",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.12",
@@ -1789,7 +2037,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "How long PLC step 6 runs. The hundreds digit of F4.00 selects seconds or minutes.",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.13",
@@ -1807,7 +2057,9 @@
     "digit_chars": "0123456",
     "read_only": false,
     "change_while_running": true,
-    "digit_limits": "621"
+    "digit_limits": "621",
+    "help": "Read the digits from right to left.\nUnits — 0 use F2.36, 1 use the source selected in F0.00.\nTens — 0 forward, 1 reverse, 2 follow the run command.\nHundreds — 0–6 select ramp sets 1–7 (F0.08/F0.09 and F2.18–F2.29).",
+    "manual_pdf_page": 48
   },
   {
     "code": "F4.14",
@@ -1822,7 +2074,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "How long PLC step 7 runs. The hundreds digit of F4.00 selects seconds or minutes.",
+    "manual_pdf_page": 48
   },
   {
     "code": "F5.00",
@@ -1837,7 +2091,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Assigns a function to input X1. See §6.6 for combination tables for speed, ramp and source selection.\n\n0 — Unassigned\n1 — Preset speed selection 1\n2 — Preset speed selection 2\n3 — Preset speed selection 3\n4 — Preset speed selection 4\n5 — Forward jog\n6 — Reverse jog\n7 — Ramp-set selection 1\n8 — Ramp-set selection 2\n9 — Ramp-set selection 3\n10 — External fault input\n11 — External fault reset\n12 — Coast stop\n13 — External stop command\n14 — DC braking command (DB)\n15 — Run inhibited\n16 — Increase frequency (UP)\n17 — Decrease frequency (DOWN)\n18 — Inhibit acceleration and deceleration\n19 — Three-wire run control (F5.08)\n20 — Disable PID control\n21 — Disable PLC control\n22 — Pause PLC cycle\n23 — Clear PLC stop state\n24 — Frequency source selection 1\n25 — Frequency source selection 2\n26 — Frequency source selection 3\n27 — Force CCI frequency reference\n28 — Force terminal command source\n29 — Run command source selection 1\n30 — Run command source selection 2\n31 — Run command source selection 3\n32 — Engage traverse\n33 — External interrupt\n34 — Reset internal counter\n35 — Count pulse input\n36 — Reset internal timer\n37 — Trigger internal timer\n38 — Available only on X5 via F5.04\n39–42 — Reserved",
+    "manual_pdf_page": 48
   },
   {
     "code": "F5.01",
@@ -1852,7 +2108,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Assigns a function to input X2. See §6.6 for combination tables for speed, ramp and source selection.\n\n0 — Unassigned\n1 — Preset speed selection 1\n2 — Preset speed selection 2\n3 — Preset speed selection 3\n4 — Preset speed selection 4\n5 — Forward jog\n6 — Reverse jog\n7 — Ramp-set selection 1\n8 — Ramp-set selection 2\n9 — Ramp-set selection 3\n10 — External fault input\n11 — External fault reset\n12 — Coast stop\n13 — External stop command\n14 — DC braking command (DB)\n15 — Run inhibited\n16 — Increase frequency (UP)\n17 — Decrease frequency (DOWN)\n18 — Inhibit acceleration and deceleration\n19 — Three-wire run control (F5.08)\n20 — Disable PID control\n21 — Disable PLC control\n22 — Pause PLC cycle\n23 — Clear PLC stop state\n24 — Frequency source selection 1\n25 — Frequency source selection 2\n26 — Frequency source selection 3\n27 — Force CCI frequency reference\n28 — Force terminal command source\n29 — Run command source selection 1\n30 — Run command source selection 2\n31 — Run command source selection 3\n32 — Engage traverse\n33 — External interrupt\n34 — Reset internal counter\n35 — Count pulse input\n36 — Reset internal timer\n37 — Trigger internal timer\n38 — Available only on X5 via F5.04\n39–42 — Reserved",
+    "manual_pdf_page": 49
   },
   {
     "code": "F5.02",
@@ -1867,7 +2125,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Assigns a function to input X3. See §6.6 for combination tables for speed, ramp and source selection.\n\n0 — Unassigned\n1 — Preset speed selection 1\n2 — Preset speed selection 2\n3 — Preset speed selection 3\n4 — Preset speed selection 4\n5 — Forward jog\n6 — Reverse jog\n7 — Ramp-set selection 1\n8 — Ramp-set selection 2\n9 — Ramp-set selection 3\n10 — External fault input\n11 — External fault reset\n12 — Coast stop\n13 — External stop command\n14 — DC braking command (DB)\n15 — Run inhibited\n16 — Increase frequency (UP)\n17 — Decrease frequency (DOWN)\n18 — Inhibit acceleration and deceleration\n19 — Three-wire run control (F5.08)\n20 — Disable PID control\n21 — Disable PLC control\n22 — Pause PLC cycle\n23 — Clear PLC stop state\n24 — Frequency source selection 1\n25 — Frequency source selection 2\n26 — Frequency source selection 3\n27 — Force CCI frequency reference\n28 — Force terminal command source\n29 — Run command source selection 1\n30 — Run command source selection 2\n31 — Run command source selection 3\n32 — Engage traverse\n33 — External interrupt\n34 — Reset internal counter\n35 — Count pulse input\n36 — Reset internal timer\n37 — Trigger internal timer\n38 — Available only on X5 via F5.04\n39–42 — Reserved",
+    "manual_pdf_page": 49
   },
   {
     "code": "F5.03",
@@ -1882,7 +2142,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Assigns a function to input X4. See §6.6 for combination tables for speed, ramp and source selection.\n\n0 — Unassigned\n1 — Preset speed selection 1\n2 — Preset speed selection 2\n3 — Preset speed selection 3\n4 — Preset speed selection 4\n5 — Forward jog\n6 — Reverse jog\n7 — Ramp-set selection 1\n8 — Ramp-set selection 2\n9 — Ramp-set selection 3\n10 — External fault input\n11 — External fault reset\n12 — Coast stop\n13 — External stop command\n14 — DC braking command (DB)\n15 — Run inhibited\n16 — Increase frequency (UP)\n17 — Decrease frequency (DOWN)\n18 — Inhibit acceleration and deceleration\n19 — Three-wire run control (F5.08)\n20 — Disable PID control\n21 — Disable PLC control\n22 — Pause PLC cycle\n23 — Clear PLC stop state\n24 — Frequency source selection 1\n25 — Frequency source selection 2\n26 — Frequency source selection 3\n27 — Force CCI frequency reference\n28 — Force terminal command source\n29 — Run command source selection 1\n30 — Run command source selection 2\n31 — Run command source selection 3\n32 — Engage traverse\n33 — External interrupt\n34 — Reset internal counter\n35 — Count pulse input\n36 — Reset internal timer\n37 — Trigger internal timer\n38 — Available only on X5 via F5.04\n39–42 — Reserved",
+    "manual_pdf_page": 49
   },
   {
     "code": "F5.04",
@@ -1897,7 +2159,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Assigns a function to input X5. See §6.6 for combination tables for speed, ramp and source selection.\n\n0 — Unassigned\n1 — Preset speed selection 1\n2 — Preset speed selection 2\n3 — Preset speed selection 3\n4 — Preset speed selection 4\n5 — Forward jog\n6 — Reverse jog\n7 — Ramp-set selection 1\n8 — Ramp-set selection 2\n9 — Ramp-set selection 3\n10 — External fault input\n11 — External fault reset\n12 — Coast stop\n13 — External stop command\n14 — DC braking command (DB)\n15 — Run inhibited\n16 — Increase frequency (UP)\n17 — Decrease frequency (DOWN)\n18 — Inhibit acceleration and deceleration\n19 — Three-wire run control (F5.08)\n20 — Disable PID control\n21 — Disable PLC control\n22 — Pause PLC cycle\n23 — Clear PLC stop state\n24 — Frequency source selection 1\n25 — Frequency source selection 2\n26 — Frequency source selection 3\n27 — Force CCI frequency reference\n28 — Force terminal command source\n29 — Run command source selection 1\n30 — Run command source selection 2\n31 — Run command source selection 3\n32 — Engage traverse\n33 — External interrupt\n34 — Reset internal counter\n35 — Count pulse input\n36 — Reset internal timer\n37 — Trigger internal timer\n38 — Pulse frequency input (F7.13–F7.17)\n39–42 — Reserved",
+    "manual_pdf_page": 49
   },
   {
     "code": "F5.08",
@@ -1912,7 +2176,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Selects how the drive interprets FWD and REV. Three-wire modes also require one X input assigned function 19.\n\n0 — Two-wire mode 1 (separate forward and reverse contacts)\n1 — Two-wire mode 2 (run contact and direction contact)\n2 — Three-wire mode 1 (stop and separate forward/reverse start buttons)\n3 — Three-wire mode 2 (stop button, start button and direction contact)",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.09",
@@ -1927,7 +2193,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Rate at which an active UP or DOWN input changes the frequency reference, in Hz per second.",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.10",
@@ -1942,7 +2210,10 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Selects the condition that activates the OC discrete output. See F3.30 for the separately assignable relay.\n\n0 — Drive running (RUN)\n1 — Reference frequency reached (FAR, F5.14)\n2 — Frequency level reached (FDT1, F5.15/F5.16)\n3 — Reserved\n4 — Overload warning (OL, F9.05/F9.06)\n5 — Upper frequency limit reached (FHL)\n6 — Lower frequency limit reached (FLL)\n7 — Undervoltage stop (LU)\n8 — External fault stop (EXT)\n9 — Running at zero frequency\n10 — PLC running\n11 — PLC step completed\n12 — PLC cycle completed\n13 — Reserved\n14 — Ready to run (RDY)\n15 — Drive fault\n16 — Traverse frequency limited\n17 — Counter final value reached (F5.25)\n18 — Counter preset reached (F5.26)\n19 — Run time threshold reached (F2.51)\n20 — Internal timer elapsed (F5.27)\n21 — Reserved\n22 — Running forward (FWD)\n23 — Running in reverse (REV)\n24 — Reserved",
+    "note": "Both the §5.2 table and Table 6-8 list 22/23 as FWD/REV. The prose below Table 6-8 marks both as reserved.",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.14",
@@ -1957,12 +2228,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "FAR asserts when output frequency is within the detection band around the frequency reference. Assign function 1 to F3.30 or F5.10 to use the signal.",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.15",
     "description": "FDT1 frequency level",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -1972,7 +2245,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "The FDT1 signal turns on when output frequency exceeds this threshold. Assign function 2 to F3.30 or F5.10.",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.16",
@@ -1987,7 +2262,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "FDT1 turns off when output frequency falls below F5.15 minus this value.",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.17",
@@ -2002,7 +2279,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects the measurement sent to AO. Adjust its scale and offset in F5.18 and F5.19.\n\n0 — Output frequency (0 to F0.10)\n1 — Frequency reference (0 to F0.10)\n2 — Output current (0 to twice rated current)\n3 — Output voltage (0 to 1.2 × motor rated voltage)\n4 — DC bus voltage (0–800 V)\n5 — PID setpoint (0–10 V)\n6 — PID feedback (0–10 V)\n7–9 — Reserved",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.18",
@@ -2017,7 +2296,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Scales the output signal selected in F5.17.",
+    "manual_pdf_page": 50
   },
   {
     "code": "F5.19",
@@ -2032,7 +2313,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Adds a voltage offset to the AO signal to match the connected instrument.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F5.23",
@@ -2047,7 +2330,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Selects the measurement represented by the pulse frequency at DO. The top of the scale corresponds to F5.24.\n\n0 — Output frequency (0 to F0.10)\n1 — Frequency reference (0 to F0.10)\n2 — Output current (0 to twice rated current)\n3 — Output voltage (0 to 1.2 × motor rated voltage)\n4 — DC bus voltage (0–800 V)\n5 — PID setpoint (0–10 V)\n6 — PID feedback (0–10 V)\n7–9 — Reserved",
+    "manual_pdf_page": 51
   },
   {
     "code": "F5.24",
@@ -2062,7 +2347,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Pulse frequency produced at full scale for the measurement selected in F5.23.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F5.25",
@@ -2077,12 +2364,14 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Count at which the drive signals event 17 on an assigned output. The count pulse input uses function 35.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F5.26",
     "description": "Counter specified value",
-    "range": "0~9999",
+    "range": "0–F5.25",
     "minimum": 0.0,
     "maximum": 9999.0,
     "unit": "",
@@ -2092,7 +2381,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "An output assigned function 18 signals when the count reaches this value and holds until the final count F5.25.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F5.27",
@@ -2107,7 +2398,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets the duration of the timer triggered by input function 37. An output assigned function 20 pulses when it elapses.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.00",
@@ -2122,7 +2415,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Enables periodic oscillation of output frequency around a reference, for example for a winding traverse.\n\n0 — Disabled\n1 — Enabled",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.01",
@@ -2139,8 +2434,10 @@
     "digits": 2,
     "digit_chars": "01",
     "read_only": false,
-    "change_while_running": true,
-    "digit_limits": "11"
+    "change_while_running": false,
+    "digit_limits": "11",
+    "help": "Read the digits from right to left.\nUnits — 0 engage automatically after holding F6.06 for F6.07, 1 engage via an input assigned function 32.\nTens — 0 scale amplitude with the center frequency, 1 use a fixed amplitude based on F0.10. F0.00 selects the center frequency source.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.02",
@@ -2155,7 +2452,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Sets the excursion as a percentage of the center frequency or F0.10, depending on F6.01. The output remains within F0.11 and F0.10.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.03",
@@ -2170,7 +2469,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Step change at each reversal of the traverse ramp, as a percentage of amplitude F6.02. 0 gives a continuous triangle wave.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.04",
@@ -2185,7 +2486,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Total duration of one rise-and-fall cycle.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.05",
@@ -2200,7 +2503,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Percentage of the cycle F6.04 spent on the rising ramp. The rest of the cycle is the falling ramp.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.06",
@@ -2215,7 +2520,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Output frequency used before the drive enters traverse mode.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F6.07",
@@ -2230,12 +2537,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Time spent at F6.06 before automatic traverse starts. Applies when the units digit of F6.01 is 0.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F7.00",
     "description": "VCI minimum input",
-    "range": "0~10",
+    "range": "0 V–F7.02",
     "minimum": 0.0,
     "maximum": 10.0,
     "unit": "V",
@@ -2245,12 +2554,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Input level for the lower point of the scale. Its frequency is set in F7.01. Applies when VCI supplies the frequency reference (F0.00 = 4 or a combination including VCI).",
+    "manual_pdf_page": 51
   },
   {
     "code": "F7.01",
     "description": "VCI minimum-input frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2260,7 +2571,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency reference when the VCI input is at F7.00.",
+    "manual_pdf_page": 51
   },
   {
     "code": "F7.02",
@@ -2275,12 +2588,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Input level for the upper point of the scale. Its frequency is set in F7.03. Applies when VCI supplies the frequency reference (F0.00 = 4 or a combination including VCI).",
+    "manual_pdf_page": 51
   },
   {
     "code": "F7.03",
     "description": "VCI maximum-input frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2290,12 +2605,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency reference when the VCI input is at F7.02.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.04",
     "description": "CCI minimum input",
-    "range": "0~10",
+    "range": "0 V–F7.06",
     "minimum": 0.0,
     "maximum": 10.0,
     "unit": "V",
@@ -2305,12 +2622,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Input level for the lower point of the scale. Its frequency is set in F7.05. Applies when CCI supplies the frequency reference (F0.00 = 5 or a combination including CCI).",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.05",
     "description": "CCI minimum-input frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2320,7 +2639,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency reference when the CCI input is at F7.04.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.06",
@@ -2335,12 +2656,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Input level for the upper point of the scale. Its frequency is set in F7.07. Applies when CCI supplies the frequency reference (F0.00 = 5 or a combination including CCI).",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.07",
     "description": "CCI maximum-input frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2350,7 +2673,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency reference when the CCI input is at F7.06.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.08",
@@ -2365,12 +2690,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Upper limit on input pulse width in the PWM reference mode (F0.00 = 11).",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.09",
     "description": "Minimum PWM setting pulse width",
-    "range": "0~999.9",
+    "range": "0 ms–F7.11",
     "minimum": 0.0,
     "maximum": 999.9,
     "unit": "ms",
@@ -2380,12 +2707,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Pulse width at the lower point of the scale. The matching frequency is set in F7.10.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.10",
     "description": "Minimum PWM setting frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2395,12 +2724,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency reference for pulse width F7.09.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.11",
     "description": "Maximum PWM setting pulse width",
-    "range": "0~999.9",
+    "range": "F7.09–F7.08",
     "minimum": 0.0,
     "maximum": 999.9,
     "unit": "ms",
@@ -2410,12 +2741,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Pulse width at the upper point of the scale. The matching frequency is set in F7.12.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.12",
     "description": "Maximum PWM setting frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2425,7 +2758,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency reference for pulse width F7.11.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.13",
@@ -2440,12 +2775,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Upper limit of the incoming pulse frequency. With F0.00 = 7, assign function 38 to X5 (F5.04).",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.14",
     "description": "PULSE minimum setting",
-    "range": "0~20",
+    "range": "0 kHz–F7.16",
     "minimum": 0.0,
     "maximum": 20.0,
     "unit": "kHz",
@@ -2455,12 +2792,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Incoming pulse frequency at the lower end of the scale. The matching output reference is set in F7.15.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.15",
     "description": "PULSE minimum setting frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2470,12 +2809,14 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Drive frequency reference corresponding to the pulse frequency F7.14.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.16",
     "description": "PULSE maximum setting",
-    "range": "0~20",
+    "range": "F7.14–F7.13",
     "minimum": 0.0,
     "maximum": 20.0,
     "unit": "kHz",
@@ -2485,12 +2826,14 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Incoming pulse frequency at the upper end of the scale. The matching output reference is set in F7.17.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F7.17",
     "description": "PULSE maximum setting frequency",
-    "range": "0~400",
+    "range": "0 Hz–F0.10",
     "minimum": 0.0,
     "maximum": 400.0,
     "unit": "Hz",
@@ -2500,7 +2843,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Drive frequency reference corresponding to the pulse frequency F7.16.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F8.01",
@@ -2516,7 +2861,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Use the nameplate voltage for the actual motor winding connection.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F8.02",
@@ -2532,7 +2879,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Use the nameplate current for the actual motor winding connection.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F8.03",
@@ -2548,7 +2897,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Use the rated supply frequency shown on the motor nameplate.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F8.04",
@@ -2564,7 +2915,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Use the rated speed at nominal load from the motor nameplate, in rpm.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F8.05",
@@ -2580,7 +2933,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Enter the total number of poles. The documented values are 2, 4, 6, 8, 10, 12 and 14.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F8.06",
@@ -2596,7 +2951,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Use the rated motor power from the nameplate, in kW.",
+    "manual_pdf_page": 52
   },
   {
     "code": "F8.16",
@@ -2611,7 +2968,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Defines the correction for the displayed frequency.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.00",
@@ -2626,7 +2985,10 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "The function table describes a restart delay after a brief power interruption. 0 disables the function.",
+    "note": "§5.2 lists both a reserved row and the restart delay for F9.00. §6.10 marks it reserved. Availability is firmware-dependent.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.01",
@@ -2641,7 +3003,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Number of attempts to resume operation after eligible faults. 0 disables automatic reset. Overload and overtemperature are excluded.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.02",
@@ -2656,7 +3020,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Wait between automatic recovery attempts when F9.01 is nonzero.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.03",
@@ -2671,7 +3037,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Sets whether the motor overload protection cuts off the inverter output.\n\n0 — Motor overload protection disabled\n1 — Cut off the output on motor overload",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.04",
@@ -2686,7 +3054,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Motor rated current divided by inverter rated output current, expressed as a percentage.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.05",
@@ -2701,7 +3071,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Current level above which the overload warning timer F9.06 runs. Function 4 on F3.30 or F5.10 reports the warning.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.06",
@@ -2716,11 +3088,13 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Time the output current must remain above F9.05 before the overload warning is raised.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.07",
-    "description": "Overvoltage stall selection",
+    "description": "Overvoltage prevention on deceleration",
     "range": "0~1",
     "minimum": 0.0,
     "maximum": 1.0,
@@ -2731,11 +3105,13 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Allows the drive to pause the frequency ramp when DC bus voltage exceeds F9.08 during deceleration.\n\n0 — Disabled\n1 — Enabled",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.08",
-    "description": "Overvoltage stall point",
+    "description": "Overvoltage prevention threshold",
     "range": "120~150",
     "minimum": 120.0,
     "maximum": 150.0,
@@ -2746,7 +3122,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "DC bus threshold as a percentage of the standard bus voltage. With F9.07 enabled, deceleration resumes after voltage falls below this threshold.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.09",
@@ -2761,7 +3139,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Output current threshold for current limiting, as a percentage of the inverter's rated current.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.10",
@@ -2776,7 +3156,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Rate at which the drive reduces its output frequency while automatic current limiting is active.",
+    "manual_pdf_page": 53
   },
   {
     "code": "F9.11",
@@ -2791,7 +3173,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": false,
-    "change_while_running": true
+    "change_while_running": false,
+    "help": "Selects whether automatic current limiting also acts during steady-speed operation. It acts during acceleration and deceleration in both modes.\n\n0 — Disabled at steady speed\n1 — Enabled at steady speed",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.00",
@@ -2806,7 +3190,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Fault record 1 of 6, newest first. 0 means the slot is empty. Values 1–23 correspond to E001–E023. Fd.06–Fd.14 contain measurements from this event.\n\nE001 — Overcurrent during acceleration\nE002 — Overcurrent during deceleration\nE003 — Overcurrent at constant speed\nE004 — Overvoltage during acceleration\nE005 — Overvoltage during deceleration\nE006 — Overvoltage at constant speed\nE007 — Control power supply overvoltage\nE008 — Drive overload\nE009 — Motor overload\nE010 — Drive overheating\nE011 — Reserved\nE012 — Reserved\nE013 — Inverter module protection\nE014 — External fault\nE015 — Current sensing circuit fault\nE016 — RS-485 communication fault\nE017 — PID feedback loss\nE018 — Reserved\nE019 — Undervoltage\nE020 — System interference\nE021 — Reserved\nE022 — Reserved\nE023 — EEPROM read/write fault",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.01",
@@ -2821,7 +3207,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Fault record 2 of 6, newest first. 0 means the slot is empty. Values 1–23 correspond to E001–E023. See Fd.00 for the code list.",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.02",
@@ -2836,7 +3224,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Fault record 3 of 6, newest first. 0 means the slot is empty. Values 1–23 correspond to E001–E023. See Fd.00 for the code list.",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.03",
@@ -2851,7 +3241,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Fault record 4 of 6, newest first. 0 means the slot is empty. Values 1–23 correspond to E001–E023. See Fd.00 for the code list.",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.04",
@@ -2866,7 +3258,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Fault record 5 of 6, newest first. 0 means the slot is empty. Values 1–23 correspond to E001–E023. See Fd.00 for the code list.",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.05",
@@ -2881,7 +3275,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Fault record 6 of 6, newest first. 0 means the slot is empty. Values 1–23 correspond to E001–E023. See Fd.00 for the code list.",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.06",
@@ -2896,7 +3292,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Frequency reference at the time of the fault.",
+    "manual_pdf_page": 53
   },
   {
     "code": "Fd.07",
@@ -2911,7 +3309,9 @@
     "scale": 100,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Actual output frequency at the time of the fault.",
+    "manual_pdf_page": 54
   },
   {
     "code": "Fd.08",
@@ -2926,7 +3326,9 @@
     "scale": 10,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Current delivered by the drive at the time of the fault.",
+    "manual_pdf_page": 54
   },
   {
     "code": "Fd.09",
@@ -2941,7 +3343,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Drive output voltage at the time of the fault.",
+    "manual_pdf_page": 54
   },
   {
     "code": "Fd.10",
@@ -2956,7 +3360,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "DC bus voltage at the time of the fault.",
+    "manual_pdf_page": 54
   },
   {
     "code": "Fd.11",
@@ -2971,7 +3377,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Recorded motor speed in rpm.",
+    "manual_pdf_page": 54
   },
   {
     "code": "Fd.12",
@@ -2986,7 +3394,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Recorded inverter module temperature.",
+    "manual_pdf_page": 54
   },
   {
     "code": "Fd.13",
@@ -3001,7 +3411,9 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Raw state word for the drive's input terminals at the time of the fault.",
+    "manual_pdf_page": 54
   },
   {
     "code": "Fd.14",
@@ -3016,6 +3428,8 @@
     "scale": 1,
     "encoding": "numeric",
     "read_only": true,
-    "change_while_running": true
+    "change_while_running": true,
+    "help": "Accumulated operating hours recorded at the time of the fault.",
+    "manual_pdf_page": 54
   }
 ]

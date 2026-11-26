@@ -1,0 +1,52 @@
+{
+  "key": "danfoss_fc51",
+  "manufacturer": "Danfoss",
+  "model": "VLT Micro Drive FC 51 — 5.5 kW / T4",
+  "series": "FC 51",
+  "type_code": "FC-051P5K5T4E20HXBXCXXXSXXX",
+  "order": 50,
+  "label": {
+    "en": "VLT Micro Drive FC 51 — 5.5 kW / 380–480 V",
+    "ru": "VLT Micro Drive FC 51 — 5.5 кВт / 380–480 В",
+    "sr": "VLT Micro Drive FC 51 — 5.5 kW / 380–480 V"
+  },
+  "addressing": "danfoss_pnu",
+  "link": {
+    "protocol": "danfoss_fc",
+    "baudrate": 9600,
+    "parity": "E",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 1.0,
+    "device_id": 1,
+    "max_read_registers": 10,
+    "index_register": 8,
+    "persist_coil": 64
+  },
+  "groups": {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "13": 13, "14": 14, "15": 15, "16": 16},
+  "protocols": {
+    "danfoss_fc": {"baudrate": 9600, "parity": "E", "stopbits": 1, "baudrates": [2400, 4800, 9600, 19200, 38400]},
+    "modbus_rtu": {"baudrate": 19200, "parity": "E", "stopbits": 1, "baudrates": [2400, 4800, 9600, 19200, 38400]}
+  },
+  "group_labels": {
+    "en": {
+      "0": "Operation / display", "1": "Load / motor", "2": "Brakes",
+      "3": "Reference / ramps", "4": "Limits / warnings",
+      "5": "Digital inputs / outputs", "6": "Analog inputs / outputs",
+      "7": "Controllers", "8": "Communication", "13": "Smart Logic",
+      "14": "Special functions", "15": "Drive information", "16": "Data readouts"
+    },
+    "ru": {
+      "0": "Управление и индикация", "1": "Нагрузка и двигатель", "2": "Торможение",
+      "3": "Задание и разгон/торможение", "4": "Ограничения и предупреждения",
+      "5": "Дискретные входы и выходы", "6": "Аналоговые входы и выходы",
+      "7": "Регуляторы", "8": "Связь", "13": "Контроллер Smart Logic",
+      "14": "Специальные функции", "15": "Информация о приводе", "16": "Текущие значения"
+    }
+  },
+  "parameters": "parameters.json",
+  "diagnostics": "diagnostics.json",
+  "translations": {"ru": "translations/ru.json"},
+  "manual_url": "https://assets.danfoss.com/documents/273445/AU361182403098en-000301.pdf",
+  "source": "Danfoss FC 51 Programming Guide MG02C602 (software 2.7X), tables 5.8–5.20; Design Guide MG02K402, sections 8.8–8.10. Russian names: MG02C250, supplemented against the English edition."
+}

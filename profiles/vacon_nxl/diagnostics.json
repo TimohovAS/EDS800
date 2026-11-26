@@ -1,0 +1,53 @@
+{
+  "source": "NXL user manual DPD01446: tables 7-4 / 9-1 and built-in Modbus process/status data on pp.79–80. Not the FC51 alarm table.",
+  "intro": {
+    "en": "Current state: FB.2101. Current fault: FB.2111. These are live readouts, not the H5 fault history. No motor-control or reset commands are sent.",
+    "ru": "Текущее состояние: FB.2101. Текущая авария: FB.2111. Это текущие значения, а не журнал H5. Команды управления двигателем и сброса не отправляются."
+  },
+  "fields": {
+    "FB.2101": {"kind": "bits", "table": "status"},
+    "FB.2111": {"kind": "code", "table": "faults", "zero_key": "diag.no_active_fault"}
+  },
+  "tables": {
+    "status": {
+      "0": {"en": "Drive ready", "ru": "Привод готов"},
+      "1": {"en": "Running", "ru": "Работа"},
+      "2": {"en": "Counterclockwise", "ru": "Вращение против часовой стрелки"},
+      "3": {"en": "Fault active", "ru": "Активна авария"},
+      "4": {"en": "Warning active", "ru": "Активно предупреждение"},
+      "5": {"en": "Speed reference reached", "ru": "Задание скорости достигнуто"},
+      "6": {"en": "Running at zero speed", "ru": "Работа на нулевой скорости"},
+      "7": {"en": "Flux ready", "ru": "Поток готов"}
+    },
+    "faults": {
+      "1": {"en": "Overcurrent", "ru": "Сверхток"},
+      "2": {"en": "Overvoltage", "ru": "Перенапряжение"},
+      "3": {"en": "Earth fault", "ru": "Замыкание на землю"},
+      "8": {"en": "System fault", "ru": "Системная ошибка"},
+      "9": {"en": "Undervoltage", "ru": "Пониженное напряжение"},
+      "11": {"en": "Output phase supervision", "ru": "Ошибка выходной фазы"},
+      "13": {"en": "Drive undertemperature", "ru": "Пониженная температура преобразователя"},
+      "14": {"en": "Drive overtemperature", "ru": "Перегрев преобразователя"},
+      "15": {"en": "Motor stalled", "ru": "Заклинивание двигателя"},
+      "16": {"en": "Motor overtemperature", "ru": "Перегрев двигателя"},
+      "17": {"en": "Motor underload", "ru": "Недогрузка двигателя"},
+      "22": {"en": "EEPROM checksum fault", "ru": "Ошибка контрольной суммы EEPROM"},
+      "24": {"en": "Counter fault", "ru": "Ошибка счётчика"},
+      "25": {"en": "Microprocessor watchdog fault", "ru": "Ошибка сторожевого таймера микропроцессора"},
+      "29": {"en": "Thermistor fault", "ru": "Ошибка термистора"},
+      "34": {"en": "Internal bus communication", "ru": "Ошибка связи по внутренней шине"},
+      "35": {"en": "Application fault", "ru": "Ошибка прикладной программы"},
+      "39": {"en": "Device removed", "ru": "Устройство удалено"},
+      "40": {"en": "Device unknown", "ru": "Неизвестное устройство"},
+      "41": {"en": "IGBT overtemperature", "ru": "Перегрев IGBT"},
+      "44": {"en": "Device changed", "ru": "Устройство заменено"},
+      "45": {"en": "Device added", "ru": "Устройство добавлено"},
+      "50": {"en": "Analogue input below 4 mA", "ru": "Ток аналогового входа ниже 4 мА"},
+      "51": {"en": "External fault", "ru": "Внешняя ошибка"},
+      "52": {"en": "Keypad communication fault", "ru": "Ошибка связи с панелью"},
+      "53": {"en": "Fieldbus fault", "ru": "Ошибка связи по полевой шине"},
+      "54": {"en": "Slot fault", "ru": "Ошибка слота"},
+      "55": {"en": "Actual value supervision", "ru": "Ошибка контроля обратной связи"}
+    }
+  }
+}

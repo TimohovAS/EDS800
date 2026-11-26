@@ -14,6 +14,6 @@ Layers, from the drive upwards:
 
 from __future__ import annotations
 
-VERSION = "3.1.1"
+VERSION = "3.8.0"
 
 __all__ = ["VERSION"]

@@ -4,6 +4,7 @@
 # One-folder build: the profiles ship as plain JSON inside the install
 # directory, so a new inverter model can still be dropped in afterwards.
 
+import ssl
 import sys
 from pathlib import Path
 
@@ -42,14 +43,22 @@ def write_version_resource() -> Path:
     return VERSION_RESOURCE
 
 
+# Some Python distributions load an additional trust policy file from ssl.py's
+# directory. Keep that policy in the frozen app when using such an interpreter.
+trust_policy = Path(ssl.__file__).with_name("codex-rejected-cas.pem")
+runtime_data = [(str(trust_policy), ".")] if trust_policy.is_file() else []
+
+
 analysis = Analysis(
     [str(ROOT / "inverter_parameter_editor.py")],
     pathex=[str(ROOT)],
     binaries=[],
     datas=[
         (str(ROOT / "profiles"), "profiles"),
+        (str(ROOT / "enc_editor" / "update_helper.ps1"), "enc_editor"),
         (str(ROOT / "README.md"), "."),
-    ],
+        (str(ROOT / "VH5_SUPPORT_STATUS.md"), "."),
+    ] + runtime_data,
     hiddenimports=["serial.tools.list_ports"],
     hookspath=[],
     runtime_hooks=[],

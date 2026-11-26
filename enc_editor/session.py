@@ -70,6 +70,34 @@ class Session:
         self.failed &= known
 
     # -- table content ----------------------------------------------------
+    def effective_parameter(self, parameter: Mapping[str, Any]) -> Mapping[str, Any]:
+        return codecs.resolve_parameter(parameter, self.loaded)
+
+    def context_problem(self, parameter: Mapping[str, Any]) -> Problem | None:
+        try:
+            self.effective_parameter(parameter)
+        except CodecError as exc:
+            return exc.problem
+        return None
+
+    def read_parameters_with_context(self, parameters: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+        """Include scale selectors even when they live in a different group."""
+        result = {p["code"]: p for p in parameters}
+        by_code = self.profile.by_code()
+        pending = list(result.values())
+        while pending:
+            parameter = pending.pop()
+            refs = list(codecs.context_codes(parameter))
+            refs += [parameter[name] for name in dependencies.BOUND_FIELDS if parameter.get(name)]
+            for variant in parameter.get("variants", ()):
+                refs += [variant.get("fields", {})[name] for name in dependencies.BOUND_FIELDS
+                         if variant.get("fields", {}).get(name)]
+            for provider in refs:
+                if provider not in result:
+                    result[provider] = by_code[provider]
+                    pending.append(by_code[provider])
+        return list(result.values())
+
     def group_parameters(self, group: str) -> list[dict[str, Any]]:
         if group == ALL_GROUPS:
             return list(self.profile.parameters)
@@ -103,6 +131,10 @@ class Session:
             return READ_ERROR
         if code not in self.loaded:
             return ""
+        try:
+            parameter = self.effective_parameter(parameter)
+        except CodecError:
+            return codecs.SCALE_ERROR
         return codecs.format_value(self.loaded[code], parameter)
 
     def display(self, parameter: Mapping[str, Any]) -> str:
@@ -120,6 +152,10 @@ class Session:
         ``0.05`` are the same setting, and a keypad field printed as ``0500``
         matches a default written ``500``.
         """
+        try:
+            parameter = self.effective_parameter(parameter)
+        except CodecError:
+            return None
         if parameter.get("read_only"):
             return None
         default = str(parameter.get("default") or "").strip()
@@ -127,6 +163,7 @@ class Session:
         if not default or not shown or shown in ERROR_TEXTS:
             return None
         try:
+            parameter = self.effective_parameter(parameter)
             return codecs.encode_value(parameter, shown) == codecs.encode_value(parameter, default)
         except CodecError:
             return None
@@ -142,8 +179,30 @@ class Session:
                 self.edited[code] = text
 
     # -- results ----------------------------------------------------------
+    def _invalidate_scaled_values(self, values: Mapping[str, Any]) -> None:
+        for parameter in self.profile.parameters:
+            changed = any(provider in values and values[provider] != self.loaded.get(provider)
+                          for provider in codecs.context_codes(parameter))
+            if changed:
+                code = parameter["code"]
+                if code not in values:
+                    self.loaded.pop(code, None)
+                    meaning_providers = (parameter.get("unit_from"), parameter.get("variants_from"))
+                    if any(provider in values and values[provider] != self.loaded.get(provider)
+                           for provider in meaning_providers if provider):
+                        # "2.0 seconds" must not survive a unit change as
+                        # "2.0 hours", nor a PF selector as a torque ramp.
+                        # Scaling-only changes preserve engineering seconds.
+                        self.edited.pop(code, None)
+                    unit_provider = parameter.get("unit_from")
+                    if unit_provider in values and values[unit_provider] != self.loaded.get(unit_provider):
+                        # "2.0 seconds" must not survive a unit change as
+                        # "2.0 hours". Scaling-only changes preserve seconds.
+                        self.edited.pop(code, None)
+
     def apply_read(self, values: Mapping[str, Any]) -> int:
         """Store a batch of read values; returns how many succeeded."""
+        self._invalidate_scaled_values(values)
         for code, value in values.items():
             if value == READ_ERROR:
                 self.failed.add(code)
@@ -154,7 +213,16 @@ class Session:
             self.edited.pop(code, None)
         return sum(1 for value in values.values() if value != READ_ERROR)
 
-    def apply_write(self, written: Mapping[str, int]) -> None:
+    def apply_write(self, written: Mapping[str, int], context: Mapping[str, Any] | None = None) -> None:
+        context = context or {}
+        self._invalidate_scaled_values({**context, **written})
+        for code, value in context.items():
+            if value == READ_ERROR:
+                self.loaded.pop(code, None)
+                self.failed.add(code)
+            else:
+                self.loaded[code] = value
+                self.failed.discard(code)
         for code, raw_value in written.items():
             self.loaded[code] = raw_value
             self.edited.pop(code, None)
@@ -174,6 +242,21 @@ class Session:
         """
         targets: list[WriteTarget] = []
         problems: list[tuple[str, Problem]] = []
+        parameters = list(parameters)
+        by_code = self.profile.by_code()
+        context = dict(self.loaded)
+        providers = {provider for p in parameters for provider in codecs.context_codes(p)}
+        # If a batch explicitly includes a selector, encode its times using
+        # that requested selector, but keep the displayed seconds unchanged.
+        for parameter in parameters:
+            code = parameter["code"]
+            if code not in providers or parameter.get("read_only"):
+                continue
+            if edited_only and code not in self.edited:
+                continue
+            text = self.display(parameter)
+            if codecs.validate_value(parameter, text) is None:
+                context[code] = codecs.encode_value(parameter, text)
         for parameter in parameters:
             if parameter.get("read_only"):
                 continue
@@ -187,22 +270,43 @@ class Session:
             if code in self.edited:
                 displayed = self.edited[code]
             elif code in self.loaded:
-                displayed = codecs.format_value(self.loaded[code], parameter)
+                displayed = self.baseline(parameter)
             else:
                 continue
             displayed = str(displayed).strip()
+            if displayed == codecs.SCALE_ERROR and codecs.context_codes(parameter):
+                problems.append((code, self.context_problem(parameter)))
+                continue
             if not displayed or displayed in ERROR_TEXTS:
+                continue
+            try:
+                unit_provider = parameter.get("unit_from")
+                if unit_provider and context.get(unit_provider) != self.loaded.get(unit_provider):
+                    raise CodecError("valid.unit_change", code=unit_provider)
+                parameter = codecs.resolve_parameter(parameter, context)
+            except CodecError as exc:
+                problems.append((code, exc.problem))
                 continue
             problem = codecs.validate_value(parameter, displayed)
             if problem is not None:
                 problems.append((code, problem))
                 continue
             try:
+                contexts = parameter.get("_resolved_context", {})
+                if contexts:
+                    parameter = dict(parameter, write_context=[
+                        {"code": provider, "address": by_code[provider]["address"], "value": value}
+                        for provider, value in contexts.items()])
+                provider = parameter.get("scale_from")
+                if provider:
+                    parameter = dict(parameter, scale_context={
+                        "code": provider, "address": by_code[provider]["address"],
+                        "value": context[provider],
+                    })
                 targets.append(WriteTarget(parameter, codecs.encode_value(parameter, displayed), displayed))
             except CodecError as exc:
                 problems.append((code, exc.problem))
 
-        by_code = self.profile.by_code()
         blocked = dependencies.conflicts(targets, by_code, self.loaded)
         if blocked:
             refused = {code for code, _problem in blocked}
@@ -211,7 +315,10 @@ class Session:
         return dependencies.order_writes(targets, by_code, self.loaded), problems
 
     def validate(self, parameter: Mapping[str, Any], text: str) -> Problem | None:
-        return codecs.validate_value(parameter, text)
+        try:
+            return codecs.validate_value(self.effective_parameter(parameter), text)
+        except CodecError as exc:
+            return exc.problem
 
     # -- settings files ---------------------------------------------------
     def settings_payload(self, values: Mapping[str, Any], device_id: int) -> dict[str, Any]:
@@ -242,7 +349,8 @@ def parse_settings_file(payload: Any, catalog: Catalog) -> LoadedSettings:
     if not isinstance(settings, dict):
         raise ValueError("not-a-settings-file")
 
-    known = {parameter["code"] for parameter in profile.parameters}
+    by_code = profile.by_code()
+    known = set(by_code)
     values: dict[str, int] = {}
     failed: set[str] = set()
     skipped = 0
@@ -254,12 +362,13 @@ def parse_settings_file(payload: Any, catalog: Catalog) -> LoadedSettings:
             failed.add(code)
             continue
         raw_value = int(value)
-        if not 0 <= raw_value <= 0xFFFF:
+        if not 0 <= raw_value <= codecs.raw_maximum(by_code[code]):
             raise ValueError(f"out-of-range:{code}")
         values[code] = raw_value
 
     if device_id is not None:
         device_id = int(device_id)
-        if not 1 <= device_id <= 247:
+        maximum = max(profile.link_for_protocol(p).maximum_device_id for p in profile.supported_protocols)
+        if not 1 <= device_id <= maximum:
             device_id = None
     return LoadedSettings(profile, values, failed, device_id, skipped)

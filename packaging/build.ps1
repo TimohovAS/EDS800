@@ -16,17 +16,26 @@
 .EXAMPLE
     # Refresh the executable only, skipping the installer step.
     powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -SkipInstaller
+
+.EXAMPLE
+    # Build with a separate environment based on standard Windows Python.
+    powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -PythonExecutable C:\build-venv\Scripts\python.exe
 #>
 [CmdletBinding()]
 param(
-    [switch]$SkipInstaller
+    [switch]$SkipInstaller,
+    [string]$PythonExecutable
 )
 
 $ErrorActionPreference = "Stop"
 
 $packaging = $PSScriptRoot
 $root = Split-Path $packaging -Parent
-$python = Join-Path $root ".venv\Scripts\python.exe"
+$python = if ($PythonExecutable) {
+    (Resolve-Path -LiteralPath $PythonExecutable).Path
+} else {
+    Join-Path $root ".venv\Scripts\python.exe"
+}
 
 if (-not (Test-Path $python)) {
     throw "No virtual environment at $python - create it and pip install -r requirements.txt pyinstaller"

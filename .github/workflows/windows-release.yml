@@ -1,0 +1,72 @@
+name: Windows installer
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Install Python dependencies
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+      - name: Check tag version
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = .\.venv\Scripts\python.exe -c 'from enc_editor import VERSION; print(VERSION)'
+          if ($LASTEXITCODE -ne 0 -or $env:RELEASE_TAG -cne "v$version") {
+            throw "Tag $env:RELEASE_TAG does not match enc_editor.VERSION ($version)"
+          }
+      - name: Test
+        run: .\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
+      - name: Install Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+      - name: Build installer
+        run: .\packaging\build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ENC-Inverter-Editor-Windows-installer
+          path: packaging/output/ENC-Inverter-Editor-*-Setup.exe
+          if-no-files-found: error
+
+  draft-release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ENC-Inverter-Editor-Windows-installer
+          path: installer
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists. Keeping its existing assets."
+          else
+            gh release create "$RELEASE_TAG" installer/* --verify-tag --draft \
+              --title "ENC Inverter Parameter Editor $RELEASE_TAG" --generate-notes
+          fi

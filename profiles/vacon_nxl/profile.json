@@ -1,0 +1,33 @@
+{
+  "key": "vacon_nxl", "manufacturer": "VACON",
+  "model": "VACON NXL NXL00075C5H1SSS00 — Multi-Control", "series": "NXL",
+  "type_code": "NXL00075C5H1SSS00", "order": 60,
+  "label": {"en": "NXL00075C5H1SSS00 — Multi-Control v3.45",
+            "ru": "NXL00075C5H1SSS00 — Multi-Control v3.45",
+            "sr": "NXL00075C5H1SSS00 — Multi-Control v3.45"},
+  "addressing": "parameter_id",
+  "link": {"protocol": "modbus_rtu", "baudrate": 9600, "bytesize": 8,
+           "parity": "N", "stopbits": 1, "device_id": 1, "timeout": 1.0,
+           "max_read_registers": 11, "device_id_limit": 255},
+  "protocols": {"modbus_rtu": {"baudrate": 9600, "parity": "N", "stopbits": 1,
+                 "baudrates": [300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600]}},
+  "groups": {"V1": 1, "P2.1": 2, "P2.2": 3, "P2.3": 4, "P2.4": 5,
+             "P2.5": 6, "P2.6": 7, "P2.7": 8, "P2.8": 9, "P2.9": 10,
+             "P2.10": 11, "K3": 12, "FB": 13},
+  "group_labels": {
+    "en": {"V1": "Monitoring (raw unless scaling is documented)", "P2.1": "Basic parameters",
+           "P2.2": "Input signals", "P2.3": "Output signals", "P2.4": "Drive control",
+           "P2.5": "Prohibit frequencies", "P2.6": "Motor control", "P2.7": "Protections",
+           "P2.8": "Automatic restart", "P2.9": "PID controller", "P2.10": "Pump and fan control",
+           "K3": "Keypad control", "FB": "Fieldbus readouts / faults"},
+    "ru": {"V1": "Мониторинг (без подтверждённого масштаба — сырые значения)", "P2.1": "Основные параметры",
+           "P2.2": "Входные сигналы", "P2.3": "Выходные сигналы", "P2.4": "Управление приводом",
+           "P2.5": "Запрещённые частоты", "P2.6": "Управление двигателем", "P2.7": "Защиты",
+           "P2.8": "Автоматический перезапуск", "P2.9": "ПИД-регулятор", "P2.10": "Насосы и вентиляторы",
+           "K3": "Управление с панели", "FB": "Текущие значения и аварии по шине"}
+  },
+  "parameters": "parameters.json", "translations": {"ru": "translations/ru.json"},
+  "diagnostics": "diagnostics.json",
+  "manual_url": "https://assets.danfoss.com/documents/272960/AB361177530779en-000301.pdf",
+  "source": "VACON NXL Multi-Control ALFIFF20 v3.45: parameter tables pp. 4–15. User manual DPD01446: type/rating tables and built-in Modbus pp. 78–82. NX OPTC2/C8 DPD00899A section 6.1.1 confirms zero-based wire addressing. NXL 0007 5: MF4, IL=7.6 A, IH=5.6 A. Firmware/application and writes require hardware verification."
+}
